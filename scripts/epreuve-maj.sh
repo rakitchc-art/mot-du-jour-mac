@@ -28,7 +28,8 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 
 echec() {
   echo "ÉPREUVE RATÉE : $1"
-  for f in "$EP/a/resultat-maj.txt" "$EP/a/journal.txt" "$EP/b/resultat-maj.txt" "$EP/b/journal.txt"; do
+  for f in "$EP/a/resultat-maj.txt" "$EP/a/journal.txt" "$EP/a.sortie.txt" "$EP/b/resultat-maj.txt" \
+           "$EP/b/journal.txt" "$EP/b.sortie.txt" "$EP/serveur.log"; do
     [ -f "$f" ] && { echo "--- $f"; cat "$f"; }
   done
   [ -n "$SERVEUR" ] && kill "$SERVEUR" 2>/dev/null
@@ -80,6 +81,11 @@ publication "$EP/serveur/fausse.json" "faux/"
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$EP/serveur" > "$EP/serveur.log" 2>&1 &
 SERVEUR=$!
 sleep 1.5
+# Le serveur répond-il, vu d'ici ? (1er passage, 06/10 : l'appli a attendu 20 s
+# sans qu'aucune requête n'arrive — on sépare « serveur absent » et « appli retenue ».)
+if curl -sS -m 5 -o /dev/null -w "serveur local : HTTP %{http_code}\n" "http://127.0.0.1:$PORT/vraie.json"; then :; else
+  echo "serveur local : ne répond pas au terminal"; lsof -nP -iTCP:"$PORT" || true; echec "le serveur d'épreuve ne répond pas"
+fi
 
 # 4. L'appli installée comme chez elle.
 rm -rf "$INSTALLEE"
@@ -87,8 +93,28 @@ cp -R "$APP" "$INSTALLEE" || echec "installation dans /Applications"
 autoriser_local "$INSTALLEE" || echec "copie d'épreuve"
 echo "installée : $(version_installee)"
 
+# L'appli installée, lancée DEPUIS LE TERMINAL. Mesuré au 1er passage (06/10) :
+# lancée par `open` (comme un double-clic), elle n'atteignait pas le serveur
+# local — aucune requête dans son journal, 20 s d'attente. La mesure « open »
+# reste ci-dessous, à titre d'information. La relance après la pose, elle,
+# passe bien par `open` (c'est le script de pose qui la fait).
+lancer() {   # lancer <dossier> <publication>
+  "$INSTALLEE/Contents/MacOS/MotDuJour" --epreuve-maj "$1" "http://127.0.0.1:$PORT/$2" "$CLE" > "$1.sortie.txt" 2>&1 &
+}
+
+# Pour information : la même demande, lancée comme un double-clic.
+open -n "$INSTALLEE" --args --epreuve-maj "$EP/info-open" "http://127.0.0.1:$PORT/fausse.json" "$CLE"
+if attendre "$EP/info-open/resultat-maj.txt" 30; then
+  echo "info (lancée par open) : $(cat "$EP/info-open/resultat-maj.txt")"
+  cat "$EP/info-open/journal.txt" 2>/dev/null
+else
+  echo "info (lancée par open) : pas de résultat en 30 s"
+fi
+pkill -f "Mot du jour.app/Contents/MacOS/MotDuJour" 2>/dev/null
+sleep 1
+
 # A. La signature fausse : rien ne doit bouger.
-open -n "$INSTALLEE" --args --epreuve-maj "$EP/a" "http://127.0.0.1:$PORT/fausse.json" "$CLE"
+lancer "$EP/a" "fausse.json"
 attendre "$EP/a/resultat-maj.txt" 60 || echec "A : pas de résultat"
 echo "A : $(cat "$EP/a/resultat-maj.txt")"
 grep -q "^ECHEC .*signature" "$EP/a/resultat-maj.txt" || echec "A : la signature fausse n'a pas été refusée"
@@ -96,7 +122,7 @@ grep -q "^ECHEC .*signature" "$EP/a/resultat-maj.txt" || echec "A : la signature
 sleep 1
 
 # B. La bonne : posée, relancée, bilan écrit par la NEUVE.
-open -n "$INSTALLEE" --args --epreuve-maj "$EP/b" "http://127.0.0.1:$PORT/vraie.json" "$CLE"
+lancer "$EP/b" "vraie.json"
 attendre "$EP/b/resultat-maj.txt" 90 || echec "B : pas de bilan"
 echo "B : $(cat "$EP/b/resultat-maj.txt")"
 grep -q "^REUSSI $NEUVE_V" "$EP/b/resultat-maj.txt" || echec "B : la pose n'a pas réussi"

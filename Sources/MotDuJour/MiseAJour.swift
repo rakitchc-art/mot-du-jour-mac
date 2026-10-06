@@ -145,7 +145,8 @@ final class MiseAJour: NSObject {
             poserSiPossible()
             return .prete(plan.version)
         } catch {
-            journal.noter("mise à jour : échec — \(error.localizedDescription)")
+            let e = error as NSError
+            journal.noter("mise à jour : échec — \(error.localizedDescription) [\(e.domain) \(e.code)]")
             return .echec(error.localizedDescription)
         }
     }
