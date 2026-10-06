@@ -1,0 +1,47 @@
+# Fabrique l'appli sur un Mac de GitHub, la met à l'épreuve, et garde le
+# résultat (l'appli, le .dmg, les planches, les photos d'écran) en pièce
+# jointe de chaque passage.
+name: Fabriquer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fabriquer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: La machine
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          swift --version
+
+      - name: Les tests du jeu
+        run: swift test
+
+      - name: Fabriquer l'appli
+        run: bash scripts/construire-app.sh
+
+      - name: Planches et partie scriptée
+        run: bash scripts/autotest.sh
+
+      - name: Garder les fichiers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mot-du-jour-${{ github.run_number }}
+          path: sortie/
+          if-no-files-found: warn

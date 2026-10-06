@@ -1,0 +1,6 @@
+# Les scripts tournent sur un Mac : fins de ligne Unix partout, même écrits sous Windows.
+* text=auto eol=lf
+*.png binary
+*.icns binary
+*.dmg binary
+*.zip binary

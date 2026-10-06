@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+sortie/
+*.xcodeproj/
+.DS_Store
+# Jamais de clé ici : la clé privée des mises à jour vit dans les secrets du dépôt GitHub.
+secrets/
+*.pem
