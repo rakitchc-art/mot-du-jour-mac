@@ -96,25 +96,12 @@ cp -R "$APP" "$INSTALLEE" || echec "installation dans /Applications"
 autoriser_local "$INSTALLEE" || echec "copie d'épreuve"
 echo "installée : $(version_installee)"
 
-# L'appli installée, lancée DEPUIS LE TERMINAL. Mesuré au 1er passage (06/10) :
-# lancée par `open` (comme un double-clic), elle n'atteignait pas le serveur
-# local — aucune requête dans son journal, 20 s d'attente. La mesure « open »
-# reste ci-dessous, à titre d'information. La relance après la pose, elle,
-# passe bien par `open` (c'est le script de pose qui la fait).
+# L'appli installée, lancée comme un double-clic (`open`, par LaunchServices) :
+# c'est ainsi qu'elle tournera chez elle. (Le 1er passage du 06/10 avait
+# accusé l'appli ; la mesure a montré que c'était le serveur de Python.)
 lancer() {   # lancer <dossier> <publication>
-  "$INSTALLEE/Contents/MacOS/MotDuJour" --epreuve-maj "$1" "http://127.0.0.1:$PORT/$2" "$CLE" > "$1.sortie.txt" 2>&1 &
+  open -n "$INSTALLEE" --args --epreuve-maj "$1" "http://127.0.0.1:$PORT/$2" "$CLE"
 }
-
-# Pour information : la même demande, lancée comme un double-clic.
-open -n "$INSTALLEE" --args --epreuve-maj "$EP/info-open" "http://127.0.0.1:$PORT/fausse.json" "$CLE"
-if attendre "$EP/info-open/resultat-maj.txt" 30; then
-  echo "info (lancée par open) : $(cat "$EP/info-open/resultat-maj.txt")"
-  cat "$EP/info-open/journal.txt" 2>/dev/null
-else
-  echo "info (lancée par open) : pas de résultat en 30 s"
-fi
-pkill -f "Mot du jour.app/Contents/MacOS/MotDuJour" 2>/dev/null
-sleep 1
 
 # A. La signature fausse : rien ne doit bouger.
 lancer "$EP/a" "fausse.json"

@@ -43,6 +43,10 @@ jobs:
       - name: Épreuve de la mise à jour
         run: bash scripts/epreuve-maj.sh
 
+      - name: Photos de la notice (en dernier, change la langue du Mac)
+        continue-on-error: true
+        run: bash scripts/captures-notice.sh
+
       - name: Garder les fichiers
         if: always()
         uses: actions/upload-artifact@v4
