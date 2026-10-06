@@ -15,12 +15,12 @@ Format d'une entrée :
 
 ---
 
-## 2026-10-06 — Le look : en attente de la planche
+## 2026-10-06 — Le look : B « façon Mac », sans clavier, l'icône grille, la pastille
 
-**Décision :** pas encore tranchée. Trois planches sont dessinées à chaque fabrication par le vrai code (`--apercu`) : le panneau en look A (« comme ta barre », toujours sombre) ou B (« façon Mac », suit le clair/sombre), avec ou sans clavier à l'écran ; les autres moments du jeu ; quatre icônes pour la barre des menus, avec ou sans pastille. En attendant, l'appli prend A sans clavier et la tuile verte (`Delegue.theme`, `Delegue.varianteIcone`).
-**Raison :** l'esthétique se décide avec Dova, sur pièces (préférence « esthétique à deux »).
-**Alternatives écartées :** —
-**Ce qui invaliderait ce choix :** —
+**Décision :** choisi par Dova sur les planches dessinées par le vrai code sur un Mac de GitHub : le panneau en look **B** (suit le réglage clair / sombre du Mac), **sans clavier à l'écran** (on tape au vrai clavier, comme dans TokenBar), l'icône **4 · grille noir et blanc** (image « modèle » que macOS peint en noir ou en blanc selon la barre), et la **pastille** quand un mot attend (monochrome, comme l'icône). L'icône de l'appli (Applications, .dmg) suivra la grille : planche à venir.
+**Raison :** son choix, sur pièces. Mes recommandations étaient « avec clavier » et « tuile verte » ; il a pris la sobriété du style Apple et la fidélité à sa barre.
+**Alternatives écartées :** look A (toujours sombre) ; le clavier à l'écran ; la tuile verte, la tuile noir et blanc, les trois cases. Les planches les gardent dessinées (`Apercu.swift`) si la question se rouvre.
+**Ce qui invaliderait ce choix :** son retour à elle, sur SON Mac (l'icône qu'elle ne retrouve pas parmi les autres, par exemple).
 
 ## 2026-10-06 — Les listes de mots en deux fichiers, un par licence
 

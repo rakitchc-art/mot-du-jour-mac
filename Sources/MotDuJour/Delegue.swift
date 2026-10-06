@@ -23,9 +23,11 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var abonnement: AnyCancellable?
     private var pastilleAffichee: Bool?
 
-    // En attendant le choix de Dova sur la planche : le look de sa barre.
-    var theme = Theme.de(.barre, clair: false, clavier: false)
-    var varianteIcone: VarianteIcone = .tuile
+    // Le choix de Dova sur les planches (06/10/2026) : look B « façon Mac »
+    // (clair ou sombre selon le Mac, résolu par PanneauRacine), sans clavier à
+    // l'écran, l'icône grille en noir et blanc. Voir DECISIONS.md.
+    var theme = Theme.de(.mac, clair: true, clavier: false)
+    var varianteIcone: VarianteIcone = .grille
 
     init(mode: Mode) {
         self.mode = mode

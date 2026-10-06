@@ -74,7 +74,8 @@ enum Apercu {
         let a = ecrire(PlanchePanneaux(), "planche-1-panneaux.png", dans: dossier)
         let b = ecrire(PlancheEtats(), "planche-2-etats.png", dans: dossier)
         let c = ecrire(PlancheIcones(), "planche-3-icones.png", dans: dossier)
-        return a && b && c
+        let d = ecrire(PlancheIconeAppli(), "planche-4-icone-appli.png", dans: dossier)
+        return a && b && c && d
     }
 
     static func ecrire<V: View>(_ vue: V, _ nom: String, dans dossier: URL) -> Bool {
@@ -233,24 +234,56 @@ struct PlancheIcones: View {
                     IconeAgrandie(variante: v)
                 }
             }
-            HStack(spacing: 18) {
-                Text("L'icône de l'appli (Applications, le .dmg, l'avertissement d'Apple) — provisoire, elle suivra ton choix :")
-                    .font(.system(size: 13)).foregroundColor(.black)
-                    .frame(width: 420, alignment: .leading)
-                if let rep = Icone.appli(cote: 256) {
-                    Image(nsImage: imageDe(rep)).resizable().frame(width: 128, height: 128)
+        }
+        .padding(30)
+        .background(Color(white: 0.93))
+    }
+}
+
+// MARK: - Planche 4 : l'icône de l'appli, tirée de la grille choisie
+
+struct PlancheIconeAppli: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Planche 4 — l'icône de l'appli (Applications, le .dmg, l'avertissement d'Apple)")
+                .font(.system(size: 21, weight: .bold)).foregroundColor(.black)
+            Text("Les trois reprennent ta grille de la barre des menus. Aux tailles où macOS les montre : 128, 64, 32 et 16 points, sur fond clair puis sombre.")
+                .font(.system(size: 13)).foregroundColor(Color(white: 0.3))
+            ForEach(VarianteAppli.allCases, id: \.self) { v in
+                HStack(alignment: .center, spacing: 22) {
+                    Text(v.nom).font(.system(size: 14, weight: .semibold)).foregroundColor(.black)
+                        .frame(width: 260, alignment: .leading)
+                    Tailles(variante: v, fond: Color(white: 0.98))
+                    Tailles(variante: v, fond: Color(white: 0.16))
                 }
             }
         }
         .padding(30)
         .background(Color(white: 0.93))
     }
+}
 
-    func imageDe(_ rep: NSBitmapImageRep) -> NSImage {
-        let i = NSImage(size: rep.size)
-        i.addRepresentation(rep)
-        return i
+struct Tailles: View {
+    let variante: VarianteAppli
+    let fond: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ForEach([128, 64, 32, 16], id: \.self) { pt in
+                if let rep = Icone.appli(cote: pt * 2, variante: variante) {
+                    Image(nsImage: imageDe(rep)).resizable().frame(width: CGFloat(pt), height: CGFloat(pt))
+                }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 10).fill(fond))
     }
+}
+
+func imageDe(_ rep: NSBitmapImageRep) -> NSImage {
+    let i = NSImage(size: NSSize(width: rep.pixelsWide / 2, height: rep.pixelsHigh / 2))
+    i.addRepresentation(rep)
+    return i
 }
 
 struct FausseBarre: View {

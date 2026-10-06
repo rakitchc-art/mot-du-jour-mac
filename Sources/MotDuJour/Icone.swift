@@ -118,9 +118,15 @@ enum Icone {
         s.draw(in: NSRect(x: r.minX, y: r.midY - h / 2 + 0.3, width: r.width, height: h))
     }
 
+    /// L'icône de l'appli retenue — PROVISOIRE tant que Dova n'a pas choisi sur
+    /// la planche 4 (les trois visages reprennent la grille de la barre des menus).
+    static let appliRetenue: VarianteAppli = .claire
+
     /// L'icône de l'appli (Finder, Applications, .dmg), dessinée à `cote`
-    /// pixels : la tuile verte en grand, au gabarit des icônes de macOS.
-    static func appli(cote: Int) -> NSBitmapImageRep? {
+    /// pixels, au gabarit des icônes de macOS : la grille de la barre des
+    /// menus — la ligne jugée en bas, la ligne à jouer au-dessus, comme l'icône
+    /// choisie — en couleurs et en grand.
+    static func appli(cote: Int, variante: VarianteAppli = appliRetenue) -> NSBitmapImageRep? {
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: cote, pixelsHigh: cote,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                          colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
@@ -133,28 +139,74 @@ enum Icone {
         // Le gabarit d'Apple : un carré arrondi de 824/1024, centré.
         let carre = NSRect(x: s * 100 / 1024, y: s * 100 / 1024, width: s * 824 / 1024, height: s * 824 / 1024)
         let forme = NSBezierPath(roundedRect: carre, xRadius: s * 185 / 1024, yRadius: s * 185 / 1024)
+        let c = variante.couleurs
+
         let ombre = NSShadow()
-        ombre.shadowColor = NSColor(white: 0, alpha: 0.35)
+        ombre.shadowColor = NSColor(white: 0, alpha: 0.32)
         ombre.shadowOffset = NSSize(width: 0, height: -s * 10 / 1024)
-        ombre.shadowBlurRadius = s * 20 / 1024
+        ombre.shadowBlurRadius = s * 22 / 1024
         NSGraphicsContext.saveGraphicsState()
         ombre.set()
-        NSColor(srgbRed: 36 / 255, green: 35 / 255, blue: 32 / 255, alpha: 1).setFill()
+        c.bas.setFill()
         forme.fill()
         NSGraphicsContext.restoreGraphicsState()
-        // Une ligne de cinq cases : g j v v v — un mot presque trouvé.
-        let c = carre.width * 0.15, e = carre.width * 0.03
-        let x0 = carre.midX - (5 * c + 4 * e) / 2, y0 = carre.midY - c / 2
-        for (k, couleur) in [gris, jaune, vert, vert, vert].enumerated() {
-            couleur.setFill()
-            NSBezierPath(roundedRect: NSRect(x: x0 + CGFloat(k) * (c + e), y: y0, width: c, height: c),
-                         xRadius: c * 0.14, yRadius: c * 0.14).fill()
-        }
-        let lettres = ["M", "O", "T", "", ""]
-        for (k, l) in lettres.enumerated() where !l.isEmpty {
-            lettre(l, dans: NSRect(x: x0 + CGFloat(k) * (c + e), y: y0, width: c, height: c),
-                   couleur: NSColor(white: 0.98, alpha: 1), taille: c * 0.62)
+        NSGradient(starting: c.bas, ending: c.haut)?.draw(in: forme, angle: 90)
+
+        // La grille 3 × 2.
+        let cote1 = carre.width * 0.2, ecart = carre.width * 0.06
+        let x0 = carre.midX - (3 * cote1 + 2 * ecart) / 2, y0 = carre.midY - (2 * cote1 + ecart) / 2
+        for k in 0..<3 {
+            let bas = NSRect(x: x0 + CGFloat(k) * (cote1 + ecart), y: y0, width: cote1, height: cote1)
+            c.cases[k].setFill()
+            NSBezierPath(roundedRect: bas, xRadius: cote1 * 0.16, yRadius: cote1 * 0.16).fill()
+            let epaisseur = cote1 * 0.09
+            let haut = bas.offsetBy(dx: 0, dy: cote1 + ecart).insetBy(dx: epaisseur / 2, dy: epaisseur / 2)
+            c.contour.setStroke()
+            let p = NSBezierPath(roundedRect: haut, xRadius: cote1 * 0.14, yRadius: cote1 * 0.14)
+            p.lineWidth = epaisseur
+            p.stroke()
         }
         return rep
+    }
+}
+
+/// Les visages possibles de l'icône de l'appli (planche 4).
+enum VarianteAppli: String, CaseIterable {
+    /// Fond blanc, la grille en couleurs : le style des applis d'Apple en clair.
+    case claire
+    /// Fond sombre, la grille en couleurs : comme le panneau quand le Mac est en sombre.
+    case sombre
+    /// Fond vert, la grille en blanc : l'icône de la barre des menus, agrandie.
+    case verte
+
+    var nom: String {
+        switch self {
+        case .claire: return "a · fond blanc, grille en couleurs"
+        case .sombre: return "b · fond sombre, grille en couleurs"
+        case .verte: return "c · fond vert, grille en blanc"
+        }
+    }
+
+    struct Teintes {
+        let haut: NSColor, bas: NSColor
+        let cases: [NSColor]
+        let contour: NSColor
+    }
+
+    var couleurs: Teintes {
+        func c(_ r: CGFloat, _ v: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> NSColor {
+            NSColor(srgbRed: r / 255, green: v / 255, blue: b / 255, alpha: a)
+        }
+        switch self {
+        case .claire:
+            return Teintes(haut: c(255, 255, 255), bas: c(226, 228, 232),
+                           cases: [c(120, 124, 126), c(201, 180, 88), c(106, 170, 100)], contour: c(196, 199, 204))
+        case .sombre:
+            return Teintes(haut: c(62, 62, 66), bas: c(28, 28, 30),
+                           cases: [c(110, 111, 112), c(181, 159, 59), c(83, 141, 78)], contour: c(98, 99, 104))
+        case .verte:
+            return Teintes(haut: c(122, 186, 114), bas: c(72, 128, 68),
+                           cases: [c(255, 255, 255), c(255, 255, 255), c(255, 255, 255)], contour: c(255, 255, 255, 0.92))
+        }
     }
 }
