@@ -45,6 +45,7 @@ jobs:
 
       - name: Photos de la notice (en dernier, change la langue du Mac)
         continue-on-error: true
+        timeout-minutes: 3
         run: bash scripts/captures-notice.sh
 
       - name: Garder les fichiers

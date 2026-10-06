@@ -45,14 +45,18 @@ rm -rf "$INSTALLEE"
 cp -R "/Volumes/Mot du jour/Mot du jour.app" /Applications/ || echo "copie depuis le .dmg impossible"
 marque_telechargement "$INSTALLEE"
 xattr -l "$INSTALLEE" | head -3
-open "$INSTALLEE"
-sleep 6
+# EN ARRIÈRE-PLAN : `open` attend la fin du lancement, donc la réponse à
+# l'avertissement — personne ne répond ici, il attendait sans fin (vu le 06/10).
+open "$INSTALLEE" &
+OUVERTURE=$!
+sleep 7
 screencapture -x "$N/2-avertissement.png" && echo "photo : 2-avertissement"
 
 # 3. Réglages Système → Confidentialité et sécurité, section Sécurité.
-open "x-apple.systempreferences:com.apple.preference.security?Security"
-sleep 8
+open "x-apple.systempreferences:com.apple.preference.security?Security" &
+sleep 9
 screencapture -x "$N/3-reglages.png" && echo "photo : 3-reglages"
 
-hdiutil detach "/Volumes/Mot du jour" -force > /dev/null 2>&1
+kill "$OUVERTURE" 2>/dev/null
+hdiutil detach "/Volumes/Mot du jour" -force > /dev/null 2>&1 &
 ls -la "$N"
