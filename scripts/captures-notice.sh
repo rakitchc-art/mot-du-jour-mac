@@ -19,7 +19,7 @@ N="$SORTIE/notice"
 rm -rf "$N"
 mkdir -p "$N"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$SORTIE/Mot du jour.app/Contents/Info.plist")
-NOM_DMG="Mot-du-jour-$VERSION.dmg"
+NOM_DMG="Mot-du-jour.dmg"
 INSTALLEE="/Applications/Mot du jour.app"
 marque_telechargement() {   # comme Safari : l'attribut de quarantaine
   xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$1"

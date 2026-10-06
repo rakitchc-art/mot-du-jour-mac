@@ -45,7 +45,7 @@ jobs:
           name: appli
           path: |
             sortie/Mot-du-jour-*.zip
-            sortie/Mot-du-jour-*.dmg
+            sortie/Mot-du-jour.dmg
           if-no-files-found: error
 
   essayer:

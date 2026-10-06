@@ -45,14 +45,32 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 # 5. L'archive des mises à jour : ditto garde les droits et la signature.
 ( cd "$SORTIE" && ditto -c -k --sequesterRsrc --keepParent "Mot du jour.app" "Mot-du-jour-$VERSION.zip" )
 
-# 6. Le .dmg de la première installation : l'appli, et un raccourci vers
-#    Applications pour l'y glisser.
+# 6. Le .dmg de la première installation : l'appli, un raccourci vers
+#    Applications pour l'y glisser, et une fenêtre mise en page (fond avec une
+#    flèche). Son nom n'a PAS de numéro : le lien de téléchargement de la
+#    notice (…/releases/latest/download/Mot-du-jour.dmg) reste le même à
+#    chaque version.
 DMG="$SORTIE/dmg"
-mkdir -p "$DMG"
+mkdir -p "$DMG/.fond"
 cp -R "$APP" "$DMG/"
 ln -s /Applications "$DMG/Applications"
-hdiutil create -volname "Mot du jour" -srcfolder "$DMG" -ov -format UDZO "$SORTIE/Mot-du-jour-$VERSION.dmg"
-rm -rf "$DMG"
+"$BIN" --fond-dmg "$SORTIE/fond"
+tiffutil -cathidpicheck "$SORTIE/fond/fond.png" "$SORTIE/fond/fond@2x.png" -out "$DMG/.fond/fond.tiff"
+hdiutil create -volname "Mot du jour" -srcfolder "$DMG" -ov -format UDRW "$SORTIE/brouillon.dmg"
+MONTAGE=$(hdiutil attach -readwrite -noverify -noautoopen "$SORTIE/brouillon.dmg" | grep -o '/Volumes/.*$' | head -1)
+echo "monté : $MONTAGE"
+# La mise en page passe par le Finder : 60 s au plus, et sans elle le .dmg
+# reste bon (fenêtre simple) — on le dit, on ne s'arrête pas.
+osascript scripts/mettre-en-page-dmg.applescript "Mot du jour" > "$SORTIE/mise-en-page-dmg.txt" 2>&1 &
+PAGE=$!
+for i in $(seq 1 120); do kill -0 "$PAGE" 2>/dev/null || break; sleep 0.5; done
+if kill -0 "$PAGE" 2>/dev/null; then kill "$PAGE"; echo "mise en page du .dmg : délai dépassé, fenêtre simple"; fi
+echo "mise en page du .dmg : $(cat "$SORTIE/mise-en-page-dmg.txt")"
+[ -f "$MONTAGE/.DS_Store" ] && echo "mise en page enregistrée (.DS_Store présent)" || echo "pas de .DS_Store : fenêtre simple"
+sync
+hdiutil detach "$MONTAGE" || hdiutil detach -force "$MONTAGE"
+hdiutil convert "$SORTIE/brouillon.dmg" -format UDZO -ov -o "$SORTIE/Mot-du-jour.dmg"
+rm -rf "$DMG" "$SORTIE/brouillon.dmg"
 
 # 7. L'effet, pas le code de retour : l'appli emballée dit bien sa version.
 LUE=$("$APP/Contents/MacOS/MotDuJour" --version)

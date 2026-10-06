@@ -36,6 +36,7 @@ struct Lanceur {
         else if let d = dossier(apres: "--apres-maj") { mode = .apresMaj(d) }
         else if let d = dossier(apres: "--controle-publication") { mode = .controlePublication(d) }
         else if let d = dossier(apres: "--epreuve-demarrage") { mode = .epreuveDemarrage(d) }
+        else if let d = dossier(apres: "--fond-dmg") { mode = .fondDmg(d) }
         else if let i = arguments.firstIndex(of: "--epreuve-maj"), i + 3 < arguments.count,
                 let adresse = URL(string: arguments[i + 2]) {
             mode = .epreuveMaj(URL(fileURLWithPath: arguments[i + 1], isDirectory: true), adresse, arguments[i + 3])

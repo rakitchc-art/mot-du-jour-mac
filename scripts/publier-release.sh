@@ -26,7 +26,7 @@ CLE=$(/usr/libexec/PlistBuddy -c "Print :MDJMiseAJourCle" "$APP/Contents/Info.pl
 node scripts/signer-archive.js "sortie/Mot-du-jour-$VERSION.zip" env:MAJ_CLE_PRIVEE "$CLE"
 
 gh release create "$TAG" \
-  "sortie/Mot-du-jour-$VERSION.dmg" "sortie/Mot-du-jour-$VERSION.zip" "sortie/Mot-du-jour-$VERSION.zip.sig" \
+  "sortie/Mot-du-jour.dmg" "sortie/Mot-du-jour-$VERSION.zip" "sortie/Mot-du-jour-$VERSION.zip.sig" \
   --repo "$GITHUB_REPOSITORY" --title "Mot du jour $VERSION" --notes-file "$NOTES" --verify-tag
 
 # L'effet, pas le code de retour : l'appli juge la publication en ligne.

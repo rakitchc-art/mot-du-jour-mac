@@ -21,6 +21,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case controlePublication(URL)
         /// L'épreuve d'« Ouvrir au démarrage du Mac » : activer, constater, désactiver.
         case epreuveDemarrage(URL)
+        /// Le fond de la fenêtre du .dmg (fabrication).
+        case fondDmg(URL)
     }
 
     let mode: Mode
@@ -55,6 +57,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .icone(let dossier):
             let ok = Apercu.iconesAppli(dans: dossier)
             exit(ok ? 0 : 1)
+        case .fondDmg(let dossier):
+            exit(Apercu.fondDmg(dans: dossier) ? 0 : 1)
         case .apresMaj(let dossier):
             // Relancée par le script de pose pendant l'épreuve : le bilan, et c'est tout.
             journal = Journal(dossier: dossier)

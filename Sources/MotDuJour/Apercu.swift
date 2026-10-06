@@ -100,6 +100,55 @@ enum Apercu {
         }
     }
 
+    /// Le fond de la fenêtre du .dmg (540 × 340 points, en 1x et 2x) : une
+    /// flèche douce de l'appli vers le dossier Applications, et la consigne.
+    /// Les positions des icônes sont celles de scripts/mettre-en-page-dmg.applescript.
+    static func fondDmg(dans dossier: URL) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        } catch { return false }
+        for echelle in [1, 2] {
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 540 * echelle, pixelsHigh: 340 * echelle,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return false }
+            rep.size = NSSize(width: 540, height: 340)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            let cadre = NSRect(x: 0, y: 0, width: 540, height: 340)
+            NSGradient(starting: NSColor(white: 0.93, alpha: 1), ending: NSColor(white: 0.995, alpha: 1))?.draw(in: cadre, angle: 90)
+            // La flèche, à la hauteur du centre des icônes (150 points depuis le haut).
+            let y: CGFloat = 340 - 150
+            let gris = NSColor(white: 0.66, alpha: 1)
+            gris.setStroke()
+            gris.setFill()
+            let trait = NSBezierPath()
+            trait.lineWidth = 3
+            trait.lineCapStyle = .round
+            trait.move(to: NSPoint(x: 214, y: y))
+            trait.line(to: NSPoint(x: 318, y: y))
+            trait.stroke()
+            let pointe = NSBezierPath()
+            pointe.move(to: NSPoint(x: 332, y: y))
+            pointe.line(to: NSPoint(x: 316, y: y + 9))
+            pointe.line(to: NSPoint(x: 316, y: y - 9))
+            pointe.close()
+            pointe.fill()
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            NSAttributedString(string: "Glisse Mot du jour dans Applications",
+                               attributes: [.font: NSFont.systemFont(ofSize: 14, weight: .medium),
+                                            .foregroundColor: NSColor(white: 0.42, alpha: 1),
+                                            .paragraphStyle: style])
+                .draw(in: NSRect(x: 0, y: 340 - 292, width: 540, height: 22))
+            NSGraphicsContext.restoreGraphicsState()
+            guard let png = rep.representation(using: .png, properties: [:]) else { return false }
+            let nom = echelle == 1 ? "fond.png" : "fond@2x.png"
+            do { try png.write(to: dossier.appendingPathComponent(nom)) } catch { return false }
+        }
+        print("fond du .dmg : fond.png et fond@2x.png")
+        return true
+    }
+
     /// Les PNG du .icns de l'appli (le nom des fichiers est celui qu'exige iconutil).
     static func iconesAppli(dans dossier: URL) -> Bool {
         let tailles: [(String, Int)] = [
