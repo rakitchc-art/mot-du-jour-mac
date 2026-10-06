@@ -260,9 +260,11 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             Self.ecrireResultat("ECHEC cette fabrication n'a pas de clé de mise à jour", dans: dossier)
             exit(1)
         }
+        // Le jeton : celui du job de publication (publier-release.sh), voir Reglages.jeton.
         let reglages = MiseAJour.Reglages(adresse: adresse ?? r.adresse, clePublique: r.clePublique,
                                           travail: dossier.appendingPathComponent("travail"), memoire: memoire,
-                                          accepteLocal: false)
+                                          accepteLocal: false,
+                                          jeton: ProcessInfo.processInfo.environment["MDJ_JETON_CONTROLE"])
         let maj = MiseAJour(reglages: reglages, journal: journal)
         Task {
             let issue = await maj.controler()

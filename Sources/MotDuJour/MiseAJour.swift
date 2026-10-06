@@ -40,6 +40,12 @@ final class MiseAJour: NSObject {
         let memoire: MemoireMiseAJour
         /// L'épreuve de la fabrication seulement (versions servies en local).
         let accepteLocal: Bool
+        /// Le contrôle d'une publication seulement : le jeton de la machine de
+        /// GitHub qui publie. Sans lui, l'API répond 403 aux questions sans
+        /// compte dès que les Mac de GitHub, qui partagent leurs adresses, ont
+        /// épuisé leurs 60 par heure (v1.0.2 refusée ainsi le 06/10). Jamais
+        /// dans l'appli livrée, et jamais envoyé ailleurs qu'à api.github.com.
+        var jeton: String? = nil
     }
 
     enum Issue: Equatable {
@@ -201,6 +207,9 @@ final class MiseAJour: NSObject {
         var requete = URLRequest(url: reglages.adresse, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         requete.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         requete.setValue("MotDuJour/\(versionDeLAppli())", forHTTPHeaderField: "User-Agent")
+        if let jeton = reglages.jeton, !jeton.isEmpty, reglages.adresse.scheme == "https", reglages.adresse.host == "api.github.com" {
+            requete.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization")
+        }
         let (data, reponse) = try await session.data(for: requete)
         guard let h = reponse as? HTTPURLResponse, h.statusCode == 200 else {
             throw ErreurMaj("les publications ont répondu \((reponse as? HTTPURLResponse)?.statusCode ?? 0)")

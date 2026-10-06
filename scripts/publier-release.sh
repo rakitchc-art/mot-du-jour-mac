@@ -39,7 +39,9 @@ CONTROLE="$PWD/sortie/controle-publication"
 ADRESSE="https://api.github.com/repos/$DEPOT/releases/tags/$TAG"
 for essai in 1 2 3 4 5 6; do
   rm -rf "$CONTROLE"
-  "$APP/Contents/MacOS/MotDuJour" --controle-publication "$CONTROLE" "$ADRESSE" || true
+  # Avec le jeton du job : sans lui, l'API refuse (403) les questions sans
+  # compte quand les Mac de GitHub ont épuisé leurs 60 par heure (06/10).
+  MDJ_JETON_CONTROLE="$GH_TOKEN" "$APP/Contents/MacOS/MotDuJour" --controle-publication "$CONTROLE" "$ADRESSE" || true
   echo "contrôle $essai : $(cat "$CONTROLE/resultat.txt" 2>/dev/null || echo 'pas de résultat')"
   if grep -qx "ACCEPTEE $VERSION" "$CONTROLE/resultat.txt" 2>/dev/null; then
     gh release edit "$TAG" --repo "$DEPOT" --prerelease=false --latest

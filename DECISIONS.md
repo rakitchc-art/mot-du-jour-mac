@@ -17,7 +17,7 @@ Format d'une entrée :
 
 ## 2026-10-06 — Pas de catégorie « jeux » dans Info.plist
 
-**Décision :** plus de `LSApplicationCategoryType` (c'était `public.app-category.word-games`), à partir de la 1.0.2 (l'étiquette v1.0.1 a été posée, mais sa publication a échoué sur l'épreuve D — numéro jamais publié, jamais réutilisé).
+**Décision :** plus de `LSApplicationCategoryType` (c'était `public.app-category.word-games`), à partir de la 1.0.3 (étiquettes v1.0.1 et v1.0.2 posées, jamais publiées, jamais réutilisées : v1.0.1 rouge sur l'épreuve D ; v1.0.2 refusée par le contrôle de l'appli, l'API de GitHub ayant répondu 403 — limite des questions sans compte épuisée par les Mac de GitHub ; le contrôle passe désormais avec le jeton du job).
 **Raison :** macOS 26 traite toute appli d'une catégorie « jeux » comme un jeu et affiche, tant qu'elle tourne, son bouton « Mode Jeu » (une fusée) dans la barre des menus. Notre appli tournant en permanence, la fusée y restait — vue par Kelly le soir de la 1.0.0. Elle était déjà sur la photo macOS 26 des essais (`ecran-panneau-ouvert.png`), absente de la photo prise avant le lancement (`notice/1-dmg-ouvert.png`) : personne ne l'avait remarquée.
 **Alternatives écartées :** une autre catégorie (elle ne sert qu'au classement de l'App Store, où l'appli n'est pas) ; lui faire retirer la fusée à la main (⌘-glisser, pas sûr que macOS le permette pour ce bouton).
 **Ce qui invaliderait ce choix :** la fusée encore là sur la photo macOS 26 des essais (absente dès le passage 37519627274), ou chez elle après la mise à jour.
