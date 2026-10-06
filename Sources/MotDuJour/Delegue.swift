@@ -254,7 +254,9 @@ struct PanneauRacine: View {
     @ObservedObject var modele: Modele
     let theme: Theme
     let ouvrirMenu: () -> Void
-    @Environment(\.colorScheme) private var schema
+    // Pas « private » : une propriété privée rendrait privé l'initialiseur
+    // de la structure, et Delegue ne pourrait plus la construire.
+    @Environment(\.colorScheme) var schema
 
     var body: some View {
         let t = theme.famille == .mac ? Theme.de(.mac, clair: schema == .light, clavier: theme.clavier) : theme

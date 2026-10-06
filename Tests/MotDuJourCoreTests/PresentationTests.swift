@@ -38,7 +38,7 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(v.message, "Trouvé en 2 !")
         XCTAssertNil(v.ligneEnCours)
         XCTAssertEqual(v.resultatDuJour, 2)
-        XCTAssertEqual(v.lignes[1].map { $0.teinte }, Array(repeating: Character("v"), count: 5))
+        XCTAssertEqual(v.lignes[1].map { $0.teinte }, Array(repeating: Character?("v"), count: 5))
         XCTAssertTrue(v.precedentPossible)
 
         let solHier = jeu.solution("2026-10-05")!
@@ -46,6 +46,7 @@ final class PresentationTests: XCTestCase {
         for k in 0..<6 { _ = jeu.proposer(mauvais[k], jour: "2026-10-05", aujourdhui: "2026-10-06") }
         v = vue(jeu, "2026-10-05")
         XCTAssertEqual(v.titre, "Hier")
+        XCTAssertEqual(v.sousTitre, "lundi 5 octobre", "hier fini : la date")
         XCTAssertEqual(v.message, "C'était \(solHier.uppercased())")
         XCTAssertEqual(v.resultatDuJour, 7)
         XCTAssertTrue(v.suivantPossible)
@@ -54,8 +55,9 @@ final class PresentationTests: XCTestCase {
     func testUnJourPasseARattraper() {
         let jeu = Jeu(dico: dico, carnet: Carnet(premierJour: "2026-10-01"))
         let v = vue(jeu, "2026-10-03")
-        XCTAssertEqual(v.titre, "samedi 3 octobre")
-        XCTAssertEqual(v.sousTitre, "à rattraper")
+        XCTAssertEqual(v.titre, "3 octobre")
+        XCTAssertEqual(v.sousTitre, "samedi · à rattraper")
+        XCTAssertEqual(vue(jeu, "2026-10-05").sousTitre, "à rattraper", "hier pas joué")
         XCTAssertEqual(v.ligneEnCours, 0)
         XCTAssertTrue(v.precedentPossible)
         XCTAssertTrue(v.suivantPossible)

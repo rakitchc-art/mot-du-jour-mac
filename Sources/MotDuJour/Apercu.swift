@@ -10,8 +10,8 @@ import MotDuJourCore
 
 @MainActor
 enum Apercu {
-    static let jourDemo = "2026-10-06"
-    static let utc = TimeZone(secondsFromGMT: 0)!
+    nonisolated static let jourDemo = "2026-10-06"
+    nonisolated static let utc = TimeZone(secondsFromGMT: 0)!
 
     // MARK: - Les parties fabriquées
 
@@ -160,8 +160,11 @@ struct Variante: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(titre).font(.system(size: 13, weight: .medium)).foregroundColor(.black)
+            // compositingGroup : une seule ombre, celle du panneau. Sans lui,
+            // chaque case et chaque touche portait la sienne (première planche).
             PanneauVue(etat: etat, theme: theme)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .compositingGroup()
                 .shadow(color: Color.black.opacity(0.25), radius: 8, x: 0, y: 3)
         }
     }
@@ -212,10 +215,10 @@ struct PlancheIcones: View {
                 .font(.system(size: 13)).foregroundColor(Color(white: 0.3))
             HStack(spacing: 18) {
                 Text("").frame(width: 200)
-                Text("barre claire").frame(width: 190)
-                Text("barre sombre").frame(width: 190)
-                Text("claire + pastille").frame(width: 190)
-                Text("sombre + pastille").frame(width: 190)
+                Text("barre claire").frame(width: 240)
+                Text("barre sombre").frame(width: 240)
+                Text("claire + pastille").frame(width: 240)
+                Text("sombre + pastille").frame(width: 240)
                 Text("agrandie").frame(width: 90)
             }
             .font(.system(size: 12, weight: .medium)).foregroundColor(Color(white: 0.3))
@@ -265,7 +268,7 @@ struct FausseBarre: View {
             Text("mar. 6 oct.  11:42").font(.system(size: 12.5)).foregroundColor(encre)
         }
         .padding(.horizontal, 10)
-        .frame(width: 190, height: 24)
+        .frame(width: 240, height: 24)
         .background(sombre ? Color(white: 0.17) : Color(white: 0.97))
     }
 
@@ -283,7 +286,7 @@ struct IconeAgrandie: View {
     let variante: VarianteIcone
 
     var body: some View {
-        let image = Image(nsImage: Icone.barre(variante, pastille: true)).resizable()
+        let image = Image(nsImage: Icone.barre(variante, pastille: true, echelle: 4))
         ZStack {
             RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.8))
             if variante.estModele {

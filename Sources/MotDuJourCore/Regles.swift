@@ -88,16 +88,38 @@ public func dateDe(_ horodatage: String) -> Date? {
 }
 
 /// Le titre du panneau pour `jour` : « Mot du jour » aujourd'hui, « Hier »,
-/// sinon la date en toutes lettres (« lundi 5 octobre »).
+/// sinon la date courte (« 27 septembre ») — le jour de la semaine passe dans
+/// le sous-titre : « dimanche 27 septembre » ne tenait pas à côté des flèches
+/// (vu sur la première planche, le 06/10).
 public func titreDuJour(_ jour: String, aujourdhui: String) -> String {
     guard let n = numeroDeJour(jour), let a = numeroDeJour(aujourdhui) else { return jour }
     if n == a { return "Mot du jour" }
     if n == a - 1 { return "Hier" }
+    return dateCourte(jour)
+}
+
+private func formatFrancais(_ motif: String, _ jour: String) -> String? {
+    guard let n = numeroDeJour(jour) else { return nil }
     let f = DateFormatter()
     f.locale = Locale(identifier: "fr_FR")
     f.timeZone = TimeZone(secondsFromGMT: 0)
-    f.dateFormat = "EEEE d MMMM"
+    f.dateFormat = motif
     return f.string(from: Date(timeIntervalSince1970: TimeInterval(n) * 86_400))
+}
+
+/// « lundi ».
+public func jourDeLaSemaine(_ jour: String) -> String { formatFrancais("EEEE", jour) ?? jour }
+
+/// « 27 septembre », « 1er janvier ».
+public func dateCourte(_ jour: String) -> String {
+    guard let mois = formatFrancais("MMMM", jour), let n = Int(jour.suffix(2)) else { return jour }
+    return (n == 1 ? "1er" : "\(n)") + " " + mois
+}
+
+/// « mardi 6 octobre », « vendredi 1er janvier ».
+public func dateEnLettres(_ jour: String) -> String {
+    guard numeroDeJour(jour) != nil else { return jour }
+    return jourDeLaSemaine(jour) + " " + dateCourte(jour)
 }
 
 // MARK: - Les mots

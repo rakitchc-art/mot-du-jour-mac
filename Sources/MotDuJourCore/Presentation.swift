@@ -48,14 +48,15 @@ public struct MessagePassager: Equatable {
     public init(_ texte: String, erreur: Bool) { self.texte = texte; self.erreur = erreur }
 }
 
-/// La date en toutes lettres : « mardi 6 octobre ».
-public func dateEnLettres(_ jour: String) -> String {
-    guard let n = numeroDeJour(jour) else { return jour }
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "fr_FR")
-    f.timeZone = TimeZone(secondsFromGMT: 0)
-    f.dateFormat = "EEEE d MMMM"
-    return f.string(from: Date(timeIntervalSince1970: TimeInterval(n) * 86_400))
+/// Le sous-titre sous le titre du jour :
+///  - aujourd'hui : la date (« mardi 6 octobre ») ;
+///  - hier : où il en est (« à rattraper », « en cours »), sinon la date ;
+///  - avant : le jour de la semaine, et où il en est (« dimanche · à rattraper »).
+func sousTitreDuJour(_ jour: String, aujourdhui: String, jouable: Bool, commence: Bool) -> String {
+    if jour == aujourdhui { return dateEnLettres(jour) }
+    let etat: String? = jouable ? (commence ? "en cours" : "à rattraper") : nil
+    if titreDuJour(jour, aujourdhui: aujourdhui) == "Hier" { return etat ?? dateEnLettres(jour) }
+    return [jourDeLaSemaine(jour), etat].compactMap { $0 }.joined(separator: " · ")
 }
 
 public func presenter(jeu: Jeu, jour: String, aujourdhui: String, saisie: Saisie,
@@ -105,14 +106,7 @@ public func presenter(jeu: Jeu, jour: String, aujourdhui: String, saisie: Saisie
         texte = ""
     }
 
-    let sousTitre: String?
-    if jour == aujourdhui {
-        sousTitre = dateEnLettres(jour)
-    } else if jouable {
-        sousTitre = essais.isEmpty ? "à rattraper" : "en cours"
-    } else {
-        sousTitre = titreDuJour(jour, aujourdhui: aujourdhui) == "Hier" ? dateEnLettres(jour) : nil
-    }
+    let sousTitre = sousTitreDuJour(jour, aujourdhui: aujourdhui, jouable: jouable, commence: !essais.isEmpty)
 
     let n = numeroDeJour(jour), p = numeroDeJour(jeu.carnet.premierJour), a = numeroDeJour(aujourdhui)
     var resultat: Int? = nil

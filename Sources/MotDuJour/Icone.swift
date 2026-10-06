@@ -33,10 +33,13 @@ enum Icone {
     static let rouge = NSColor(srgbRed: 240 / 255, green: 55 / 255, blue: 60 / 255, alpha: 1)
 
     /// L'icône de la barre des menus, 18 × 18 points. La pastille dit qu'un
-    /// mot attend (aujourd'hui pas encore fini).
-    static func barre(_ v: VarianteIcone, pastille: Bool) -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in
-            dessiner(v, dans: r, pastille: pastille)
+    /// mot attend (aujourd'hui pas encore fini). `echelle` ne sert qu'à la
+    /// planche : la même icône REDESSINÉE en grand, pas étirée (étirée, elle
+    /// était floue sur la première planche).
+    static func barre(_ v: VarianteIcone, pastille: Bool, echelle: CGFloat = 1) -> NSImage {
+        let image = NSImage(size: NSSize(width: 18 * echelle, height: 18 * echelle), flipped: false) { _ in
+            NSGraphicsContext.current?.cgContext.scaleBy(x: echelle, y: echelle)
+            dessiner(v, dans: NSRect(x: 0, y: 0, width: 18, height: 18), pastille: pastille)
             return true
         }
         image.isTemplate = v.estModele

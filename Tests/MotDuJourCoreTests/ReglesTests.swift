@@ -94,8 +94,17 @@ final class ReglesTests: XCTestCase {
     func testTitreDuJour() {
         XCTAssertEqual(titreDuJour("2026-10-07", aujourdhui: "2026-10-07"), "Mot du jour")
         XCTAssertEqual(titreDuJour("2026-10-06", aujourdhui: "2026-10-07"), "Hier")
-        XCTAssertEqual(titreDuJour("2026-10-05", aujourdhui: "2026-10-07"), "lundi 5 octobre")
-        XCTAssertEqual(titreDuJour("2027-01-01", aujourdhui: "2027-01-03"), "vendredi 1 janvier")
+        XCTAssertEqual(titreDuJour("2026-10-05", aujourdhui: "2026-10-07"), "5 octobre")
+        XCTAssertEqual(titreDuJour("2027-01-01", aujourdhui: "2027-01-03"), "1er janvier")
+        XCTAssertEqual(titreDuJour("2026-09-30", aujourdhui: "2026-10-07"), "30 septembre")
+    }
+
+    func testDatesEnLettres() {
+        XCTAssertEqual(dateEnLettres("2026-10-06"), "mardi 6 octobre")
+        XCTAssertEqual(dateEnLettres("2027-01-01"), "vendredi 1er janvier")
+        XCTAssertEqual(jourDeLaSemaine("2026-09-27"), "dimanche")
+        XCTAssertEqual(dateCourte("2026-09-27"), "27 septembre")
+        XCTAssertEqual(dateEnLettres("pas une date"), "pas une date")
     }
 
     // MARK: l'ordre des mots
