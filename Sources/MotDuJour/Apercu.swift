@@ -247,7 +247,7 @@ struct PlancheIconeAppli: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Planche 4 — l'icône de l'appli (Applications, le .dmg, l'avertissement d'Apple)")
                 .font(.system(size: 21, weight: .bold)).foregroundColor(.black)
-            Text("Les trois reprennent ta grille de la barre des menus. Aux tailles où macOS les montre : 128, 64, 32 et 16 points, sur fond clair puis sombre.")
+            Text("« En noir et blanc très soft » : trois nuances de ta grille. Aux tailles où macOS les montre : 128, 64, 32 et 16 points, sur fond clair puis sombre.")
                 .font(.system(size: 13)).foregroundColor(Color(white: 0.3))
             ForEach(VarianteAppli.allCases, id: \.self) { v in
                 HStack(alignment: .center, spacing: 22) {

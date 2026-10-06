@@ -60,8 +60,18 @@ public struct PlanMiseAJour: Equatable {
     public let signature: URL
 }
 
+/// Une adresse d'où l'on accepte de télécharger : https, toujours — sauf
+/// l'épreuve de la fabrication, qui sert ses fausses versions depuis la
+/// machine elle-même (http://127.0.0.1) et le DIT par `accepteLocal`. Même
+/// alors, jamais du http vers une autre machine.
+public func adresseAcceptable(_ u: URL, accepteLocal: Bool) -> Bool {
+    if u.scheme == "https" { return true }
+    return accepteLocal && u.scheme == "http" && (u.host == "127.0.0.1" || u.host == "localhost")
+}
+
 /// Que faire de la dernière publication ? nil = rien.
-public func planDeMiseAJour(_ p: Publication, versionCourante: String, refusees: Set<String>) -> PlanMiseAJour? {
+public func planDeMiseAJour(_ p: Publication, versionCourante: String, refusees: Set<String>,
+                            accepteLocal: Bool = false) -> PlanMiseAJour? {
     if p.draft == true || p.prerelease == true { return nil }
     guard let comps = composantesVersion(p.tag_name) else { return nil }
     let version = comps.map(String.init).joined(separator: ".")
@@ -70,8 +80,91 @@ public func planDeMiseAJour(_ p: Publication, versionCourante: String, refusees:
     guard let a = p.assets.first(where: { $0.name == nom }),
           let s = p.assets.first(where: { $0.name == nom + ".sig" }),
           let ua = URL(string: a.browser_download_url), let us = URL(string: s.browser_download_url),
-          ua.scheme == "https", us.scheme == "https" else { return nil }
+          adresseAcceptable(ua, accepteLocal: accepteLocal),
+          adresseAcceptable(us, accepteLocal: accepteLocal) else { return nil }
     return PlanMiseAJour(version: version, archive: ua, signature: us)
+}
+
+/// La version écrite dans le .app d'à côté (Info.plist), lue sans le charger.
+public func versionDuPaquet(_ app: URL) -> (identifiant: String, version: String)? {
+    let plist = app.appendingPathComponent("Contents/Info.plist")
+    guard let data = try? Data(contentsOf: plist),
+          let d = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+          let id = d["CFBundleIdentifier"] as? String,
+          let v = d["CFBundleShortVersionString"] as? String else { return nil }
+    return (id, v)
+}
+
+// MARK: - La mémoire sur le disque (leçon de TokenBar : un garde-fou en
+// mémoire meurt avec le processus, et c'est justement le redémarrage qui
+// rejoue la boucle)
+
+/// La pose annoncée avant de quitter : relue au démarrage suivant.
+public struct PoseAttendue: Codable, Equatable {
+    public var version: String
+    public var depuis: String
+    public var utc: String
+    public init(version: String, depuis: String, utc: String) {
+        self.version = version; self.depuis = depuis; self.utc = utc
+    }
+}
+
+public enum BilanPose: Equatable {
+    case rien
+    /// La nouvelle version tourne : la pose a réussi.
+    case reussie(String)
+    /// C'est toujours l'ancienne qui tourne : cette version est refusée pour toujours.
+    case ratee(String)
+}
+
+/// Au démarrage : que dit la pose annoncée, s'il y en a une ? Écrit le
+/// refus sur le disque AVANT de rendre la main, et efface l'annonce.
+public final class MemoireMiseAJour {
+    public let dossier: URL
+    var fichierAttendue: URL { dossier.appendingPathComponent("maj-attendue.json") }
+    var fichierRefusees: URL { dossier.appendingPathComponent("maj-refusees.json") }
+
+    public init(dossier: URL) { self.dossier = dossier }
+
+    public func refusees() -> Set<String> {
+        guard let data = try? Data(contentsOf: fichierRefusees),
+              let liste = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return Set(liste)
+    }
+
+    public func refuser(_ version: String) throws {
+        var r = refusees()
+        r.insert(version)
+        try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        try JSONEncoder().encode(r.sorted()).write(to: fichierRefusees, options: .atomic)
+    }
+
+    public func annoncer(_ p: PoseAttendue) throws {
+        try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        try JSONEncoder().encode(p).write(to: fichierAttendue, options: .atomic)
+    }
+
+    public func attendue() -> PoseAttendue? {
+        guard let data = try? Data(contentsOf: fichierAttendue) else { return nil }
+        return try? JSONDecoder().decode(PoseAttendue.self, from: data)
+    }
+
+    public func bilan(versionCourante: String) throws -> BilanPose {
+        guard let a = attendue() else {
+            // Une annonce illisible ne doit pas survivre : elle reviendrait à chaque démarrage.
+            if FileManager.default.fileExists(atPath: fichierAttendue.path) { try? FileManager.default.removeItem(at: fichierAttendue) }
+            return .rien
+        }
+        let bilan: BilanPose
+        if composantesVersion(versionCourante) == composantesVersion(a.version) {
+            bilan = .reussie(a.version)
+        } else {
+            try refuser(a.version)
+            bilan = .ratee(a.version)
+        }
+        try FileManager.default.removeItem(at: fichierAttendue)
+        return bilan
+    }
 }
 
 /// La signature Ed25519 d'une archive, vérifiée avec la clé publique de l'appli.

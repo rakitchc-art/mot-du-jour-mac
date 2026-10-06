@@ -120,12 +120,12 @@ enum Icone {
 
     /// L'icône de l'appli retenue — PROVISOIRE tant que Dova n'a pas choisi sur
     /// la planche 4 (les trois visages reprennent la grille de la barre des menus).
-    static let appliRetenue: VarianteAppli = .claire
+    static let appliRetenue: VarianteAppli = .blanc
 
     /// L'icône de l'appli (Finder, Applications, .dmg), dessinée à `cote`
     /// pixels, au gabarit des icônes de macOS : la grille de la barre des
     /// menus — la ligne jugée en bas, la ligne à jouer au-dessus, comme l'icône
-    /// choisie — en couleurs et en grand.
+    /// choisie — en grand, dans les teintes de la variante.
     static func appli(cote: Int, variante: VarianteAppli = appliRetenue) -> NSBitmapImageRep? {
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: cote, pixelsHigh: cote,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -170,20 +170,20 @@ enum Icone {
     }
 }
 
-/// Les visages possibles de l'icône de l'appli (planche 4).
+/// Les visages possibles de l'icône de l'appli (planche 4). Dova, le 06/10,
+/// devant trois versions en couleurs : « en noir et blanc très soft ». Trois
+/// nuances de gris, la ligne jugée en trois tons qui rappellent gris, jaune,
+/// vert sans les nommer.
 enum VarianteAppli: String, CaseIterable {
-    /// Fond blanc, la grille en couleurs : le style des applis d'Apple en clair.
-    case claire
-    /// Fond sombre, la grille en couleurs : comme le panneau quand le Mac est en sombre.
-    case sombre
-    /// Fond vert, la grille en blanc : l'icône de la barre des menus, agrandie.
-    case verte
+    case blanc
+    case perle
+    case graphite
 
     var nom: String {
         switch self {
-        case .claire: return "a · fond blanc, grille en couleurs"
-        case .sombre: return "b · fond sombre, grille en couleurs"
-        case .verte: return "c · fond vert, grille en blanc"
+        case .blanc: return "1 · blanc doux"
+        case .perle: return "2 · gris perle"
+        case .graphite: return "3 · graphite doux"
         }
     }
 
@@ -198,15 +198,15 @@ enum VarianteAppli: String, CaseIterable {
             NSColor(srgbRed: r / 255, green: v / 255, blue: b / 255, alpha: a)
         }
         switch self {
-        case .claire:
-            return Teintes(haut: c(255, 255, 255), bas: c(226, 228, 232),
-                           cases: [c(120, 124, 126), c(201, 180, 88), c(106, 170, 100)], contour: c(196, 199, 204))
-        case .sombre:
-            return Teintes(haut: c(62, 62, 66), bas: c(28, 28, 30),
-                           cases: [c(110, 111, 112), c(181, 159, 59), c(83, 141, 78)], contour: c(98, 99, 104))
-        case .verte:
-            return Teintes(haut: c(122, 186, 114), bas: c(72, 128, 68),
-                           cases: [c(255, 255, 255), c(255, 255, 255), c(255, 255, 255)], contour: c(255, 255, 255, 0.92))
+        case .blanc:
+            return Teintes(haut: c(253, 253, 252), bas: c(233, 233, 231),
+                           cases: [c(192, 192, 190), c(170, 170, 168), c(148, 148, 146)], contour: c(212, 212, 210))
+        case .perle:
+            return Teintes(haut: c(241, 241, 240), bas: c(213, 213, 211),
+                           cases: [c(142, 142, 140), c(120, 120, 118), c(98, 98, 96)], contour: c(178, 178, 176))
+        case .graphite:
+            return Teintes(haut: c(86, 86, 88), bas: c(52, 52, 54),
+                           cases: [c(176, 176, 178), c(206, 206, 208), c(236, 236, 238)], contour: c(130, 130, 132))
         }
     }
 }
