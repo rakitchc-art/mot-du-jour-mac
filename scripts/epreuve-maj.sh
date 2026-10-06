@@ -67,13 +67,38 @@ autoriser_local() {   # sur une copie d'épreuve seulement
                           -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$1/Contents/Info.plist"
   codesign --force --deep --sign - "$1"
 }
-installer() {   # l'appli d'épreuve dans /Applications, « téléchargée puis autorisée »
+preparer_dmg() {   # un .dmg comme celui qu'elle télécharge, avec la copie d'épreuve
+  rm -rf "$EP/dmg-src"
+  mkdir -p "$EP/dmg-src"
+  cp -R "$APP" "$EP/dmg-src/"
+  autoriser_local "$EP/dmg-src/Mot du jour.app" > /dev/null 2>&1 || echec "copie d'épreuve"
+  ln -s /Applications "$EP/dmg-src/Applications"
+  hdiutil create -volname "Mot du jour epreuve" -srcfolder "$EP/dmg-src" -ov -format UDZO "$EP/epreuve.dmg" > /dev/null \
+    || echec "fabrication du .dmg d'épreuve"
+  xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$EP/epreuve.dmg"
+}
+installer() {   # comme ELLE : le .dmg téléchargé ouvert, l'appli glissée par le FINDER
+  # (mesuré le 06/10 : posée par `cp` avec la marque de téléchargement, macOS
+  # l'isole — elle tourne depuis …/AppTranslocation/… et ne peut pas se mettre
+  # à jour. La question est de savoir ce qu'il fait d'une appli glissée par le
+  # Finder, comme elle le fera.)
   chflags -R nouchg "$INSTALLEE" 2>/dev/null
   rm -rf "$INSTALLEE"
-  cp -R "$APP" "$INSTALLEE" || echec "installation dans /Applications"
-  autoriser_local "$INSTALLEE" > /dev/null 2>&1 || echec "copie d'épreuve"
-  # 0x40 = ouverte avec son accord : l'état d'après « Ouvrir quand même ».
-  xattr -w com.apple.quarantine "00c1;$(printf %x "$(date +%s)");Safari;" "$INSTALLEE"
+  hdiutil attach -noautoopen "$EP/epreuve.dmg" > "$EP/attache.txt" || echec "montage du .dmg d'épreuve"
+  VOL=$(grep -o '/Volumes/.*$' "$EP/attache.txt" | head -1)
+  osascript -e "tell application \"Finder\" to duplicate (POSIX file \"$VOL/Mot du jour.app\" as alias) to (POSIX file \"/Applications\" as alias) with replacing" \
+    > /dev/null || echec "copie par le Finder"
+  hdiutil detach "$VOL" -force > /dev/null 2>&1
+  [ -d "$INSTALLEE" ] || echec "le Finder n'a rien posé dans /Applications"
+  Q=$(xattr -p com.apple.quarantine "$INSTALLEE" 2>/dev/null)
+  echo "marque posée par le Finder : ${Q:-aucune}"
+  # « Ouvrir quand même » : le drapeau 0x40 (ouverte avec son accord) s'ajoute
+  # à ceux que le Finder a posés.
+  if [ -n "$Q" ]; then
+    DRAPEAUX=$(printf "%04x" $(( 0x${Q%%;*} | 0x40 )))
+    xattr -w com.apple.quarantine "$DRAPEAUX;${Q#*;}" "$INSTALLEE"
+    echo "marque après « Ouvrir quand même » : $(xattr -p com.apple.quarantine "$INSTALLEE")"
+  fi
 }
 lancer() {   # lancer <dossier du résultat> <publication> : comme un double-clic
   open -n "$INSTALLEE" --args --epreuve-maj "$1" "http://127.0.0.1:$PORT/$2" "$CLE" &
@@ -115,6 +140,8 @@ done
 curl -sS -m 5 -o /dev/null -w "serveur local : HTTP %{http_code}\n" "http://127.0.0.1:$PORT/vraie.json" \
   || echec "le serveur d'épreuve ne répond pas"
 
+preparer_dmg
+
 # A. La signature fausse : rien ne doit bouger.
 nettoyer
 installer
@@ -130,7 +157,11 @@ grep -qx "ECHEC la signature de la version $NEUVE_V ne correspond pas" "$EP/a/re
 nettoyer
 installer
 lancer "$EP/b" "vraie.json"
-attendre_ligne "mise à jour : $NEUVE_V posée et relancée" 90 || echec "B : pas de bilan de la neuve au journal"
+if ! attendre_ligne "mise à jour : $NEUVE_V posée et relancée" 90; then
+  grep -q "ne tourne pas depuis Applications" "$JOURNAL" 2>/dev/null \
+    && echec "B : macOS a ISOLÉ l'appli glissée par le Finder (AppTranslocation) — chez elle, elle ne se mettrait jamais à jour"
+  echec "B : pas de bilan de la neuve au journal"
+fi
 [ "$(version_installee)" = "$NEUVE_V" ] || echec "B : l'appli installée n'est pas la neuve"
 [ ! -d "$SUPPORT/ancienne.app" ] || echec "B : la sauvegarde de l'ancienne traîne"
 [ ! -f "$SUPPORT/maj-attendue.json" ] || echec "B : l'annonce de pose traîne"
