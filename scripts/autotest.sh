@@ -18,7 +18,16 @@ rm -rf "$CAPT"
 mkdir -p "$CAPT"
 
 echo "== les planches"
-"$APP/Contents/MacOS/MotDuJour" --apercu "$CAPT" || { echo "les planches ont échoué"; exit 1; }
+if [ "$(uname -m)" = "x86_64" ]; then
+  # Mesuré le 06/10 : sur le Mac Intel de GitHub (machine virtuelle sans carte
+  # graphique), ImageRenderer s'arrête net dans Metal (« Target device
+  # architecture is nil »). Les planches sont des images de travail, pas une
+  # fonction de l'appli : elles sont dessinées sur les Mac à puce Apple. Le
+  # reste de l'essai (la vraie appli) tourne ici normalement.
+  echo "planches NON dessinées sur ce Mac Intel d'essai (pas de carte graphique) — voir les Mac à puce Apple"
+else
+  "$APP/Contents/MacOS/MotDuJour" --apercu "$CAPT" || { echo "les planches ont échoué"; exit 1; }
+fi
 
 attendre() {   # attendre <fichier> <secondes>
   local n=0
