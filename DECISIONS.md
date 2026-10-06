@@ -17,7 +17,7 @@ Format d'une entrée :
 
 ## 2026-10-06 — Le look : B « façon Mac », sans clavier, l'icône grille, la pastille
 
-**Décision :** choisi par Dova sur les planches dessinées par le vrai code sur un Mac de GitHub : le panneau en look **B** (suit le réglage clair / sombre du Mac), **sans clavier à l'écran** (on tape au vrai clavier, comme dans TokenBar), l'icône **4 · grille noir et blanc** (image « modèle » que macOS peint en noir ou en blanc selon la barre), et la **pastille** quand un mot attend (monochrome, comme l'icône). L'icône de l'appli (Applications, .dmg) suivra la grille : planche à venir.
+**Décision :** choisi par Dova sur les planches dessinées par le vrai code sur un Mac de GitHub : le panneau en look **B** (suit le réglage clair / sombre du Mac), **sans clavier à l'écran** (on tape au vrai clavier, comme dans TokenBar), l'icône **4 · grille noir et blanc** (image « modèle » que macOS peint en noir ou en blanc selon la barre), et la **pastille** quand un mot attend (monochrome, comme l'icône). L'icône de l'appli (Applications, .dmg) : devant trois versions en couleurs, « **en noir et blanc très soft** » — planche 4b de trois nuances, il a pris **2 · gris perle** (`Icone.appliRetenue`).
 **Raison :** son choix, sur pièces. Mes recommandations étaient « avec clavier » et « tuile verte » ; il a pris la sobriété du style Apple et la fidélité à sa barre.
 **Alternatives écartées :** look A (toujours sombre) ; le clavier à l'écran ; la tuile verte, la tuile noir et blanc, les trois cases. Les planches les gardent dessinées (`Apercu.swift`) si la question se rouvre.
 **Ce qui invaliderait ce choix :** son retour à elle, sur SON Mac (l'icône qu'elle ne retrouve pas parmi les autres, par exemple).

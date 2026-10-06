@@ -1,15 +1,17 @@
-# Fabrique l'appli sur un Mac de GitHub, la met à l'épreuve, et garde le
-# résultat (l'appli, le .dmg, les planches, les photos d'écran) en pièce
-# jointe de chaque passage.
+# Fabrique l'appli sur un Mac de GitHub, la met à l'épreuve (les tests du jeu,
+# une partie jouée dans le vrai panneau, la mise à jour posée en vrai dans
+# /Applications), et garde le résultat en pièce jointe de chaque passage.
+# Sur une étiquette vX.Y.Z (posée par scripts/Publier.ps1) : publie la version.
 name: Fabriquer
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fabriquer-${{ github.ref }}
@@ -38,6 +40,9 @@ jobs:
       - name: Planches et partie scriptée
         run: bash scripts/autotest.sh
 
+      - name: Épreuve de la mise à jour
+        run: bash scripts/epreuve-maj.sh
+
       - name: Garder les fichiers
         if: always()
         uses: actions/upload-artifact@v4
@@ -45,3 +50,10 @@ jobs:
           name: mot-du-jour-${{ github.run_number }}
           path: sortie/
           if-no-files-found: warn
+
+      - name: Publier la version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAJ_CLE_PRIVEE: ${{ secrets.MAJ_CLE_PRIVEE }}
+        run: bash scripts/publier-release.sh "$GITHUB_REF_NAME"

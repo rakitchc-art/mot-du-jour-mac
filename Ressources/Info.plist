@@ -28,6 +28,10 @@
 	<string>12.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>MDJMiseAJourCle</key>
+	<string>gVSw+/nXNiwptX3WuGKjROstuSsjdTJS7tmXpzqdugA=</string>
+	<key>MDJMiseAJourURL</key>
+	<string>https://api.github.com/repos/rakitchc-art/mot-du-jour-mac/releases/latest</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

@@ -12,10 +12,19 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case apercu(URL)
         case icone(URL)
         case autotest(URL)
+        /// L'épreuve de la mise à jour (fabrication) : dossier, adresse des
+        /// publications servies en local, clé publique d'épreuve.
+        case epreuveMaj(URL, URL, String)
+        /// La relance après une pose, pendant l'épreuve : écrit le bilan.
+        case apresMaj(URL)
+        /// Le contrôle d'une publication par l'appli elle-même (script de publication).
+        case controlePublication(URL)
     }
 
     let mode: Mode
     private(set) var modele: Modele!
+    private(set) var miseAJour: MiseAJour?
+    private var journal = Journal.parDefaut()
     private var element: NSStatusItem!
     let popover = NSPopover()
     private var moniteurClavier: Any?
@@ -44,19 +53,54 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .icone(let dossier):
             let ok = Apercu.iconesAppli(dans: dossier)
             exit(ok ? 0 : 1)
-        case .normal, .autotest:
+        case .apresMaj(let dossier):
+            // Relancée par le script de pose pendant l'épreuve : le bilan, et c'est tout.
+            journal = Journal(dossier: dossier)
+            let maj = MiseAJour(reglages: Self.reglagesEpreuve(dossier, adresse: dossier, cle: ""), journal: journal)
+            let resultat: String
+            switch maj.bilanAuDemarrage() {
+            case .reussie(let v): resultat = "REUSSI \(v)"
+            case .ratee(let v): resultat = "RATE \(v)"
+            case .rien: resultat = "RIEN"
+            }
+            Self.ecrireResultat(resultat + " — sauvegarde " + (FileManager.default.fileExists(atPath: maj.sauvegarde.path) ? "présente" : "effacée"), dans: dossier)
+            exit(0)
+        case .controlePublication(let dossier):
+            journal = Journal(dossier: dossier)
+            guard let r = MiseAJour.reglagesLivres(memoire: MemoireMiseAJour(dossier: dossier.appendingPathComponent("etat"))) else {
+                Self.ecrireResultat("ECHEC cette fabrication n'a pas de clé de mise à jour", dans: dossier)
+                exit(1)
+            }
+            let reglages = MiseAJour.Reglages(adresse: r.adresse, clePublique: r.clePublique,
+                                              travail: dossier.appendingPathComponent("travail"), memoire: r.memoire,
+                                              accepteLocal: false, relance: [])
+            let maj = MiseAJour(reglages: reglages, journal: journal)
+            Task {
+                switch await maj.controler() {
+                case .acceptee(let v): Self.ecrireResultat("ACCEPTEE \(v)", dans: dossier); exit(0)
+                case .echec(let m): Self.ecrireResultat("ECHEC \(m)", dans: dossier); exit(1)
+                default: Self.ecrireResultat("ECHEC réponse inattendue", dans: dossier); exit(1)
+                }
+            }
+            return
+        case .normal, .autotest, .epreuveMaj:
             break
         }
 
         let dossier: URL
-        if case .autotest(let d) = mode {
+        switch mode {
+        case .autotest(let d):
             // Le bac à sable de l'autotest : jamais le vrai carnet.
             dossier = d.appendingPathComponent("carnet-autotest", isDirectory: true)
             try? FileManager.default.removeItem(at: dossier)
-        } else {
+        case .epreuveMaj(let d, _, _):
+            journal = Journal(dossier: d)
+            dossier = d.appendingPathComponent("carnet", isDirectory: true)
+        default:
             dossier = Depot.dossierParDefaut()
         }
         modele = Modele(depot: Depot(dossier: dossier))
+        installerMiseAJour(dossierCarnet: dossier)
 
         installerElement()
         installerPanneau()
@@ -68,14 +112,63 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(reveil(_:)),
                                                           name: NSWorkspace.didWakeNotification, object: nil)
 
-        if case .autotest(let d) = mode {
+        switch mode {
+        case .autotest(let d):
             Autotest(delegue: self, dossier: d).lancer()
-        } else {
+        case .epreuveMaj(let d, _, _):
+            // L'épreuve : chercher tout de suite. Si la pose part, l'appli se
+            // ferme d'elle-même et la suivante écrit le bilan ; sinon on dit pourquoi.
+            Task {
+                let issue = await self.miseAJour?.verifier() ?? .echec("pas de mise à jour installée")
+                switch issue {
+                case .echec(let m): Self.ecrireResultat("ECHEC \(m)", dans: d)
+                case .aJour(let v): Self.ecrireResultat("AJOUR \(v)", dans: d)
+                case .prete(let v): Self.ecrireResultat("PRETE \(v) mais pas posée", dans: d)
+                case .acceptee(let v): Self.ecrireResultat("ACCEPTEE \(v)", dans: d)
+                }
+                exit(0)
+            }
+        default:
             Demarrage.activerAuPremierLancement()
             if modele.premierLancement {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.ouvrirPanneau() }
             }
         }
+    }
+
+    // MARK: - La mise à jour
+
+    private func installerMiseAJour(dossierCarnet: URL) {
+        switch mode {
+        case .autotest:
+            return   // le bac à sable de l'autotest ne touche pas aux mises à jour
+        case .epreuveMaj(let d, let adresse, let cle):
+            let maj = MiseAJour(reglages: Self.reglagesEpreuve(d, adresse: adresse, cle: cle), journal: journal)
+            maj.bilanAuDemarrage()
+            miseAJour = maj
+        default:
+            guard let r = MiseAJour.reglagesLivres(memoire: MemoireMiseAJour(dossier: dossierCarnet)) else {
+                journal.noter("mise à jour : cette fabrication n'a pas de clé, pas de mise à jour automatique")
+                return
+            }
+            let maj = MiseAJour(reglages: r, journal: journal)
+            maj.peutPoser = { [weak self] in !(self?.popover.isShown ?? false) }
+            maj.bilanAuDemarrage()
+            maj.demarrer()
+            miseAJour = maj
+        }
+    }
+
+    static func reglagesEpreuve(_ d: URL, adresse: URL, cle: String) -> MiseAJour.Reglages {
+        MiseAJour.Reglages(adresse: adresse, clePublique: cle,
+                           travail: d.appendingPathComponent("travail", isDirectory: true),
+                           memoire: MemoireMiseAJour(dossier: d.appendingPathComponent("etat", isDirectory: true)),
+                           accepteLocal: true, relance: ["--apres-maj", d.path])
+    }
+
+    static func ecrireResultat(_ texte: String, dans d: URL) {
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        try? (texte + "\n").write(to: d.appendingPathComponent("resultat-maj.txt"), atomically: true, encoding: .utf8)
     }
 
     /// Un double-clic sur l'appli alors qu'elle tourne déjà (elle cherche
@@ -160,6 +253,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             NSEvent.removeMonitor(m)
             moniteurClavier = nil
         }
+        // Une version prête attendait que le panneau se ferme.
+        miseAJour?.poserSiPossible()
     }
 
     /// Le vrai clavier du Mac. Renvoie true si la touche a été prise.
@@ -192,10 +287,33 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ajouter("Ouvrir le mot du jour", #selector(menuOuvrir))
         menu.addItem(.separator())
         ajouter("Ouvrir au démarrage du Mac", #selector(menuDemarrage), coche: Demarrage.actif)
+        if miseAJour != nil { ajouter("Rechercher une mise à jour", #selector(menuMiseAJour)) }
         menu.addItem(.separator())
         ajouter("À propos de Mot du jour", #selector(menuAPropos))
         ajouter("Quitter Mot du jour", #selector(menuQuitter))
+        let version = NSMenuItem(title: "Version \(versionDeLAppli())", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
         return menu
+    }
+
+    @objc private func menuMiseAJour() {
+        guard let maj = miseAJour else { return }
+        Task {
+            // Si une version est prête et le panneau fermé, elle se pose tout de
+            // suite et l'appli se relance : la phrase ci-dessous ne s'affiche pas.
+            switch await maj.verifier() {
+            case .aJour(let v):
+                alerte("Mot du jour est à jour", detail: "C'est la version \(v), la dernière publiée.")
+            case .prete(let v):
+                alerte("La version \(v) est prête",
+                       detail: "Elle s'installera toute seule dès que le panneau sera fermé, puis l'appli se relancera.")
+            case .acceptee:
+                break
+            case .echec(let m):
+                alerte("La recherche de mise à jour n'a pas abouti", detail: m)
+            }
+        }
     }
 
     private func montrerMenuSousIcone() {

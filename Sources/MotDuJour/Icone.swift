@@ -118,9 +118,9 @@ enum Icone {
         s.draw(in: NSRect(x: r.minX, y: r.midY - h / 2 + 0.3, width: r.width, height: h))
     }
 
-    /// L'icône de l'appli retenue — PROVISOIRE tant que Dova n'a pas choisi sur
-    /// la planche 4 (les trois visages reprennent la grille de la barre des menus).
-    static let appliRetenue: VarianteAppli = .blanc
+    /// L'icône de l'appli retenue par Dova sur la planche 4b (06/10/2026) :
+    /// « gris perle », en noir et blanc très doux.
+    static let appliRetenue: VarianteAppli = .perle
 
     /// L'icône de l'appli (Finder, Applications, .dmg), dessinée à `cote`
     /// pixels, au gabarit des icônes de macOS : la grille de la barre des

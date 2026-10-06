@@ -144,6 +144,13 @@ public final class MemoireMiseAJour {
         try JSONEncoder().encode(p).write(to: fichierAttendue, options: .atomic)
     }
 
+    /// Retire une annonce dont la pose n'a finalement pas été lancée : sinon le
+    /// démarrage suivant la compterait comme une pose ratée, et refuserait pour
+    /// toujours une version qui n'a jamais été essayée.
+    public func oublierAnnonce() {
+        try? FileManager.default.removeItem(at: fichierAttendue)
+    }
+
     public func attendue() -> PoseAttendue? {
         guard let data = try? Data(contentsOf: fichierAttendue) else { return nil }
         return try? JSONDecoder().decode(PoseAttendue.self, from: data)
