@@ -125,6 +125,34 @@ final class JeuTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: depot.fichier.path))
     }
 
+    func testUnCarnetDUneVersionPlusRecenteNEstJamaisReecrit() throws {
+        let dossier = dossierTemporaire()
+        try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        let depot = Depot(dossier: dossier)
+        let futur = #"{"format":2,"premierJour":"2026-10-01","grilles":{}}"#
+        try Data(futur.utf8).write(to: depot.fichier)
+        let r = depot.charger(aujourdhui: "2026-10-07")
+        XCTAssertNotNil(r.avertissement)
+        XCTAssertTrue(depot.ecritureInterdite)
+        XCTAssertThrowsError(try depot.enregistrer(r.carnet))
+        XCTAssertEqual(try String(contentsOf: depot.fichier, encoding: .utf8), futur, "le fichier n'a pas bougé")
+    }
+
+    func testUnCarnetIllisibleQuOnNePeutPasDeplacerNEstJamaisEcrase() throws {
+        let dossier = dossierTemporaire()
+        try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        let depot = Depot(dossier: dossier)
+        try Data("{ abîmé".utf8).write(to: depot.fichier)
+        // Le dossier en lecture seule : le carnet ne peut pas être mis de côté.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dossier.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dossier.path) }
+        let r = depot.charger(aujourdhui: "2026-10-07")
+        XCTAssertNotNil(r.avertissement)
+        XCTAssertTrue(depot.ecritureInterdite)
+        XCTAssertThrowsError(try depot.enregistrer(r.carnet))
+        XCTAssertEqual(try String(contentsOf: depot.fichier, encoding: .utf8), "{ abîmé")
+    }
+
     func testUneGrilleSeRelitAvecDesChampsManquants() throws {
         let json = #"{"premierJour":"2026-10-01","grilles":{"2026-10-02":{"solution":"plume","essais":[{"mot":"plume","couleurs":"vvvvv","utc":"2026-10-02T08:00:00.000Z"}]}}}"#
         let c = try JSONDecoder().decode(Carnet.self, from: Data(json.utf8))

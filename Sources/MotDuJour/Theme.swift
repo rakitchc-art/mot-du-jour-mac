@@ -2,10 +2,11 @@ import SwiftUI
 
 /// L'apparence du panneau.
 ///
-/// Deux familles, en attente du choix de Dova sur la planche :
+/// Deux familles, dessinées toutes deux sur les planches :
 ///  - « barre » : les couleurs du mot mystère de TokenBar, toujours sombre ;
 ///  - « mac »   : suit le réglage clair / sombre du Mac, couleurs de Wordle.
-/// Et, pour chacune, avec ou sans clavier à l'écran.
+/// Et, pour chacune, avec ou sans clavier à l'écran. Choix de Dova (06/10) :
+/// « mac », sans clavier (Delegue.theme) ; l'autre reste pour les planches.
 struct Theme {
     enum Famille: String { case barre, mac }
 

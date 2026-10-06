@@ -22,7 +22,15 @@ const racine = path.resolve(process.argv[2] || '.');
 const port = parseInt(process.argv[3] || '8765', 10);
 
 http.createServer(function (req, res) {
-  const demande = decodeURIComponent(new URL(req.url, 'http://local').pathname);
+  let demande;
+  try {
+    demande = decodeURIComponent(new URL(req.url, 'http://local').pathname);
+  } catch (e) {
+    // Un « % » mal formé tuait le serveur (tour de code du 06/10).
+    res.writeHead(400); res.end();
+    console.log(req.method + ' ' + req.url + ' 400');
+    return;
+  }
   const chemin = path.resolve(racine, '.' + demande);
   if (chemin !== racine && !chemin.startsWith(racine + path.sep)) {
     res.writeHead(403); res.end();

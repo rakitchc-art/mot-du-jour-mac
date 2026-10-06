@@ -21,11 +21,11 @@ cp -R "$APP" "$INSTALLEE"
 
 open -n "$INSTALLEE" --args --epreuve-demarrage "$EP"
 n=0
-while [ ! -f "$EP/resultat-maj.txt" ]; do
+while [ ! -f "$EP/resultat.txt" ]; do
   sleep 0.5
   n=$((n + 1))
   if [ "$n" -ge 80 ]; then echo "ÉPREUVE RATÉE : pas de résultat en 40 s"; rm -rf "$INSTALLEE"; exit 1; fi
 done
-cat "$EP/resultat-maj.txt"
+cat "$EP/resultat.txt"
 rm -rf "$INSTALLEE"
-grep -q "^REUSSI" "$EP/resultat-maj.txt"
+grep -q "^REUSSI" "$EP/resultat.txt"

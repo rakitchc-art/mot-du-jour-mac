@@ -37,8 +37,9 @@ fléchies de Grammalecte v7.7** (Olivier R., base Dicollecte).
 sans préfixes ni morceaux de locutions.
 
 **Ce que la licence impose :** le fichier `MotsGrammalecte.swift` reste sous **MPL 2.0**
-(la mention est en tête du fichier), et sa forme source est disponible dans ce dépôt
-public — y compris pour qui n'a reçu que l'appli.
+(la mention est en tête du fichier), et sa forme source est disponible — y compris pour
+qui n'a reçu que l'appli — à cette adresse :
+https://github.com/rakitchc-art/mot-du-jour-mac/blob/main/Sources/MotDuJourCore/MotsGrammalecte.swift
 
 ## Pourquoi deux fichiers
 

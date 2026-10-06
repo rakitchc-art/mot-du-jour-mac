@@ -15,9 +15,11 @@ final class Modele: ObservableObject {
     @Published private(set) var secousse = 0
 
     let depot: Depot?
-    /// Le premier lancement : le panneau s'ouvre tout seul sous l'icône, pour
-    /// qu'elle voie où il vit.
+    /// Le premier lancement (le carnet n'existait pas encore).
     let premierLancement: Bool
+    /// L'appli ne tourne pas depuis Applications : chaque ouverture le rappelle
+    /// (sans cela, elle ne se met jamais à jour ni ne démarre avec le Mac).
+    var rappelerRangement = false
     private var avertissement: String?
     private var effacement: DispatchWorkItem?
     /// Le jour courant. Remplaçable par l'autotest seulement, pour faire passer
@@ -68,7 +70,9 @@ final class Modele: ObservableObject {
     }
 
     func taper(_ l: Character) {
-        if vueStats { vueStats = false }
+        // Les stats affichées n'acceptent pas de lettres (comme TokenBar,
+        // Integration-TokenBar.ps1) : on revient à la grille par le bouton.
+        guard !vueStats else { return }
         guard jouable else { return grilleFinie() }
         if message?.erreur == true { message = nil }
         saisie.taper(l)
@@ -91,7 +95,7 @@ final class Modele: ObservableObject {
     }
 
     func valider() {
-        if vueStats { vueStats = false; return }
+        guard !vueStats else { return }
         guard jouable else { return grilleFinie() }
         guard saisie.prete else { return refuser("Il faut cinq lettres") }
         switch jeu.proposer(saisie.mot, jour: jourAffiche, aujourdhui: aujourdhui) {
@@ -125,22 +129,25 @@ final class Modele: ObservableObject {
         message = nil
     }
 
-    /// À chaque ouverture du panneau : la page a-t-elle tourné ? On revient
-    /// au jour courant, sauf si une ligne était en cours de frappe ailleurs.
+    /// À chaque ouverture du panneau : toujours le jour courant, ligne vide
+    /// (comme TokenBar, Mot-Barre.ps1 Reset-NavigationMot) — sinon, après
+    /// minuit, une ligne commencée la veille partirait sur « Hier ».
     func ouverture() {
         verifierJour()
-        if jourAffiche != aujourdhui && saisie.vide { allerAu(aujourdhui) }
+        if jourAffiche != aujourdhui { allerAu(aujourdhui) }
         vueStats = false
         if let a = avertissement {
             avertissement = nil
             passager(MessagePassager(a, erreur: true), duree: 6)
+        } else if rappelerRangement {
+            passager(MessagePassager("Range-moi dans Applications pour que je reste", erreur: true), duree: 6)
         }
     }
 
     /// Minuit est-il passé ? Renvoie true si la page a tourné. Le panneau
     /// ouvert ne saute PAS au jour neuf sous ses yeux : le jour affiché reste
-    /// jouable (il devient « hier », qui se rattrape) ; l'ouverture suivante
-    /// ramène au jour courant.
+    /// jouable (il devient « hier », qui se rattrape, et le titre le dit) ;
+    /// l'ouverture suivante ramène au jour courant.
     @discardableResult
     func verifierJour() -> Bool {
         let j = horloge()

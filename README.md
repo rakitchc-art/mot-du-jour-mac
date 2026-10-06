@@ -8,21 +8,30 @@ le Mac.
 - **Les couleurs :** vert = bonne lettre, bonne place ; jaune = dans le mot, mais
   ailleurs ; gris = pas dans le mot. Un mot inconnu ne compte pas : on retape.
 - **Les jours passés :** les flèches ‹ › remontent jusqu'au jour de l'installation ;
-  un jour raté se rattrape.
+  un jour manqué se rattrape (une grille finie, trouvée ou non, ne se rejoue pas).
 - **Les statistiques :** série, record, moyenne, répartition des essais.
 - **Sans compte, sans internet** pour jouer. L'appli se met à jour toute seule.
 
 ## Installation
 
-*La première version est en préparation.* La marche à suivre (ouvrir le `.dmg`,
-glisser l'appli dans Applications, et la première ouverture à autoriser dans
-Réglages Système) sera écrite ici avec elle.
+**La notice illustrée : https://rakitchc-art.github.io/mot-du-jour-mac/**
+
+En bref : télécharger
+[Mot-du-jour.dmg](https://github.com/rakitchc-art/mot-du-jour-mac/releases/latest/download/Mot-du-jour.dmg),
+l'ouvrir, glisser l'appli dans Applications, l'ouvrir. La première fois, macOS
+l'arrête (elle n'est pas notarisée par Apple) : cliquer « Terminé » — jamais
+« Placer dans la corbeille » —, puis Réglages Système → Confidentialité et
+sécurité → « Ouvrir quand même ». Ensuite, elle se rouvre à chaque démarrage du
+Mac et se met à jour toute seule.
 
 ## Pour le développement
 
 L'appli est écrite en Swift et se fabrique sur un Mac : les Mac de GitHub s'en
-chargent à chaque envoi (`.github/workflows/fabriquer.yml`), avec les tests du jeu,
-les planches des looks et une partie jouée par un robot dans le vrai panneau.
+chargent à chaque envoi (`.github/workflows/fabriquer.yml`). Fabriquée une fois,
+la même appli est essayée sur macOS 14, 15, 26 et un Mac Intel : une partie jouée
+par un robot dans le vrai panneau (minuit compris), la mise à jour posée en vrai,
+le démarrage automatique, le vrai clavier. Publier : `scripts/Publier.ps1`, seul
+chemin (préversion jugée par l'appli elle-même, puis dernière version).
 
 - `Sources/MotDuJourCore` — les règles, sans interface ;
 - `Sources/MotDuJour` — l'appli : l'icône, le panneau, les planches ;

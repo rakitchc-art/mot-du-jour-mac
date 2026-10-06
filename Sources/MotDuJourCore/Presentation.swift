@@ -36,6 +36,9 @@ public struct VueEtat: Equatable {
     /// La meilleure couleur connue de chaque lettre jouée ce jour-là (v > j > g).
     public var lettresClavier: [Character: Character]
     public var vueStats: Bool
+    /// Calculées seulement quand la vue des statistiques est affichée (vides
+    /// sinon) : elles parcourent tous les jours depuis l'installation, et le
+    /// panneau se redessine à chaque lettre tapée (tour de code du 06/10).
     public var stats: Statistiques
     /// Le résultat du jour affiché, pour la répartition : 1 à 6, 7 = raté.
     public var resultatDuJour: Int?
@@ -123,6 +126,6 @@ public func presenter(jeu: Jeu, jour: String, aujourdhui: String, saisie: Saisie
         messageErreur: erreur,
         lettresClavier: clavier,
         vueStats: vueStats,
-        stats: statistiques(jeu.carnet, aujourdhui: aujourdhui, fuseau: fuseau),
+        stats: vueStats ? statistiques(jeu.carnet, aujourdhui: aujourdhui, fuseau: fuseau) : Statistiques(),
         resultatDuJour: resultat)
 }

@@ -2,17 +2,27 @@ import Foundation
 import ServiceManagement
 
 /// « Ouvrir au démarrage du Mac » : sans lui, l'icône disparaît au premier
-/// redémarrage et le mot du jour avec. Activé tout seul au TOUT PREMIER
-/// lancement (comme la barre de Dova sous Windows), débrayable dans le menu —
-/// et jamais réactivé dans son dos une fois qu'elle l'a coupé.
+/// redémarrage, et le mot du jour avec.
+///
+/// La règle (tour de code du 06/10) : à CHAQUE lancement depuis Applications,
+/// si elle ne l'a pas coupé elle-même et que macOS ne la tient pas pour
+/// inscrite, on l'inscrit — et le journal dit ce qu'il en est. Ainsi un échec
+/// se retente au lancement suivant au lieu de se taire pour toujours, et une
+/// appli lancée d'abord depuis le .dmg s'inscrit dès qu'elle est rangée.
+/// Coupé dans le menu = jamais réactivé dans son dos.
 enum Demarrage {
-    private static let cleDecide = "demarrageDejaDecide"
+    private static let cleCoupe = "demarrageCoupeParElle"
     static let etiquette = "fr.dova.motdujour"
 
-    /// Lancée depuis une copie « isolée » par macOS (ouverte directement dans
-    /// Téléchargements ou dans le .dmg) : son chemin change à chaque lancement,
-    /// rien de durable ne peut s'y accrocher.
-    static var appliIsolee: Bool { Bundle.main.bundlePath.contains("/AppTranslocation/") }
+    /// Rangée dans un dossier Applications ? Hors de là (le .dmg, les
+    /// Téléchargements, une copie « isolée » par macOS dont le chemin change à
+    /// chaque lancement), rien de durable ne peut s'y accrocher : ni le
+    /// démarrage automatique, ni la mise à jour.
+    static var dansApplications: Bool {
+        let chemin = Bundle.main.bundlePath
+        let maison = FileManager.default.homeDirectoryForCurrentUser.path
+        return chemin.hasPrefix("/Applications/") || chemin.hasPrefix(maison + "/Applications/")
+    }
 
     static var actif: Bool {
         if #available(macOS 13.0, *) {
@@ -35,8 +45,8 @@ enum Demarrage {
         return FileManager.default.fileExists(atPath: agentDeLancement.path) ? "agent de lancement présent" : "pas d'agent de lancement"
     }
 
-    static func activer(_ oui: Bool) throws {
-        UserDefaults.standard.set(true, forKey: cleDecide)
+    /// Inscrit ou désinscrit, sans toucher à son choix.
+    static func inscrire(_ oui: Bool) throws {
         if #available(macOS 13.0, *) {
             if oui { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             return
@@ -48,12 +58,32 @@ enum Demarrage {
         }
     }
 
-    static func activerAuPremierLancement() {
-        guard !UserDefaults.standard.bool(forKey: cleDecide), !appliIsolee else { return }
-        try? activer(true)
+    /// Le menu : elle choisit. Son choix est gardé (couper = ne plus jamais
+    /// réinscrire d'office).
+    static func basculer() throws {
+        let oui = !actif
+        try inscrire(oui)
+        UserDefaults.standard.set(!oui, forKey: cleCoupe)
     }
 
-    // macOS 12 : un agent de lancement dans ~/Library/LaunchAgents.
+    /// À chaque lancement ordinaire : inscrire si besoin, et le dire au journal.
+    static func assurer(journal: Journal) {
+        guard dansApplications else {
+            journal.noter("démarrage automatique : pas inscrit, l'appli ne tourne pas depuis Applications (\(Bundle.main.bundlePath))")
+            return
+        }
+        if UserDefaults.standard.bool(forKey: cleCoupe) { return }
+        if actif { return }
+        do {
+            try inscrire(true)
+            journal.noter("démarrage automatique : inscrit (\(etatLisible))")
+        } catch {
+            journal.noter("démarrage automatique : l'inscription a échoué (\(etatLisible)) — \(error.localizedDescription) ; nouvel essai au prochain lancement")
+        }
+    }
+
+    // macOS 12 : un agent de lancement dans ~/Library/LaunchAgents. Il passe
+    // « --au-demarrage » à l'appli : lancée ainsi, elle n'ouvre pas son panneau.
     static var agentDeLancement: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/LaunchAgents/\(etiquette).plist")
@@ -62,7 +92,7 @@ enum Demarrage {
     private static func ecrireAgent() throws {
         let contenu: [String: Any] = [
             "Label": etiquette,
-            "ProgramArguments": ["/usr/bin/open", "-a", Bundle.main.bundlePath],
+            "ProgramArguments": ["/usr/bin/open", "-a", Bundle.main.bundlePath, "--args", "--au-demarrage"],
             "RunAtLoad": true,
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: contenu, format: .xml, options: 0)

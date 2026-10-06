@@ -32,6 +32,8 @@ iconutil -c icns "$SORTIE/AppIcon.iconset" -o "$SORTIE/AppIcon.icns"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/MotDuJour"
 cp "$PLIST" "$APP/Contents/Info.plist"
+# Le numéro de fabrication suit la version (une seule source : CFBundleShortVersionString).
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
 cp "$SORTIE/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 cp CREDITS.md LICENSE "$APP/Contents/Resources/"
 plutil -lint "$APP/Contents/Info.plist"

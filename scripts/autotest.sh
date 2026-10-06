@@ -61,4 +61,12 @@ pkill -f "Mot du jour.app/Contents/MacOS/MotDuJour" || true
 
 echo "== journal"
 cat "$CAPT/journal-autotest.txt" 2>/dev/null || echo "(pas de journal)"
-grep -qx "REUSSI" "$CAPT/resultat-autotest.txt" 2>/dev/null
+grep -qx "REUSSI" "$CAPT/resultat-autotest.txt" 2>/dev/null || exit 1
+
+# Le vrai panneau en mode SOMBRE (jusqu'ici vu seulement sur planche) : le
+# réglage est lu au lancement de l'appli. Une photo, pas une épreuve.
+echo "== le panneau en mode sombre"
+defaults write -g AppleInterfaceStyle Dark
+"$APP/Contents/MacOS/MotDuJour" --montrer-panneau "$CAPT/sombre" || echo "photo du mode sombre impossible"
+defaults delete -g AppleInterfaceStyle 2>/dev/null || true
+ls "$CAPT/sombre" 2>/dev/null || true

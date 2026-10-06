@@ -15,6 +15,28 @@ Format d'une entrée :
 
 ---
 
+## 2026-10-06 — Le tour de code : ce qui a changé de règle
+
+**Décision :** après le tour de code indépendant (22 points, aucun bloquant dans le code qui avait tourné) :
+- **Mise à jour** : la sauvegarde de l'ancienne version vit dans Application Support (plus dans les Caches, que macOS peut vider) ; le script de pose SURVEILLE la neuve deux minutes — sans bilan, l'ancienne revient et refuse la version pour toujours ; on ne pose jamais avec une alerte ouverte ; ditto et codesign hors du fil de l'interface.
+- **Publication en deux temps** : la version part en « préversion » (invisible des applis installées), l'appli elle-même la juge en ligne, puis seulement elle devient « dernière version » — sinon elle est retirée.
+- **Démarrage automatique** : inscrit à CHAQUE lancement depuis Applications s'il ne l'est pas (un échec se retente et s'écrit au journal) ; jamais hors d'Applications ; coupé dans le menu = jamais réinscrit d'office. Sous macOS 12, l'agent passe `--au-demarrage`.
+- **Le panneau s'ouvre quand ELLE lance l'appli** (pas seulement la première fois) — jamais à l'ouverture de session, jamais à la relance d'une mise à jour. Un second exemplaire demande au premier d'ouvrir son panneau et s'en va.
+- **Le clavier** : seules les frappes destinées au panneau sont prises (une alerte garde les siennes).
+- **Comme TokenBar** : chaque ouverture revient au jour courant, ligne vide ; les stats affichées n'acceptent pas de lettres.
+- **Carnet** : jamais réécrit s'il est d'une version plus récente, ou illisible et impossible à mettre de côté.
+- **Hors d'Applications** : un rappel « Range-moi dans Applications pour que je reste » à chaque ouverture.
+**Raison :** chacun de ces points pouvait laisser son amie avec une appli qui ne revient pas, ne se met plus à jour, ou perd une partie — sans qu'elle puisse comprendre pourquoi.
+**Alternatives écartées :** livrer d'abord et corriger ensuite (personne ne peut réparer chez elle) ; une fenêtre « Déplacer dans Applications » qui se déplace toute seule (copie isolée de macOS : chemin d'origine inconnu sans API privée).
+**Ce qui invaliderait ce choix :** un retour réel de son Mac qui contredit l'une de ces suppositions.
+
+## 2026-10-06 — Écart assumé avec TokenBar : « rattrapé » se juge au fuseau du Mac
+
+**Décision :** un jour compte « rattrapé » dans les stats si son premier essai a été joué un jour civil plus tard, **dans le fuseau du Mac au moment du calcul** (TokenBar juge au fuseau fixe Europe/Paris de son serveur).
+**Raison :** il n'y a pas de serveur ; elle joue seule, dans son fuseau. Le seul effet d'un voyage : un compteur « dont N rattrapés » qui peut varier d'une unité.
+**Alternatives écartées :** garder le fuseau de chaque essai (un champ de plus dans le carnet pour une statistique secondaire).
+**Ce qui invaliderait ce choix :** un jeu à deux, où le jour doit être le même pour les deux joueurs.
+
 ## 2026-10-06 — Le look : B « façon Mac », sans clavier, l'icône grille, la pastille
 
 **Décision :** choisi par Dova sur les planches dessinées par le vrai code sur un Mac de GitHub : le panneau en look **B** (suit le réglage clair / sombre du Mac), **sans clavier à l'écran** (on tape au vrai clavier, comme dans TokenBar), l'icône **4 · grille noir et blanc** (image « modèle » que macOS peint en noir ou en blanc selon la barre), et la **pastille** quand un mot attend (monochrome, comme l'icône). L'icône de l'appli (Applications, .dmg) : devant trois versions en couleurs, « **en noir et blanc très soft** » — planche 4b de trois nuances, il a pris **2 · gris perle** (`Icone.appliRetenue`).
@@ -38,7 +60,7 @@ Format d'une entrée :
 
 ## 2026-10-06 — Mise à jour automatique
 
-**Décision :** l'appli se met à jour seule (choix de Dova, contre ma recommandation « tu lui renvoies le fichier »), depuis les publications de ce dépôt public. Chemin prévu : l'API publique de GitHub donne la dernière publication ; l'archive n'est posée que si sa signature Ed25519 est valide pour la clé publique livrée dans l'appli (clé privée : seulement dans les secrets du dépôt). Une version refusée ne se retente jamais (mémoire sur le disque, leçon de TokenBar). Le cœur de la décision est écrit et testé (`MiseAJourCoeur.swift`) ; le geste (télécharger, poser, relancer) reste à écrire et à éprouver en vrai.
+**Décision :** l'appli se met à jour seule (choix de Dova, contre ma recommandation « tu lui renvoies le fichier »), depuis les publications de ce dépôt public. L'API publique de GitHub donne la dernière publication ; l'archive n'est posée que si sa signature Ed25519 est valide pour la clé publique livrée dans l'appli (clé privée : seulement dans les secrets du dépôt, et une copie hors du dépôt sur le PC de Dova). Une version refusée ne se retente jamais (mémoire sur le disque, leçon de TokenBar). Écrit (`MiseAJourCoeur.swift`, `MiseAJour.swift`) et éprouvé en vrai sur quatre Mac par `scripts/epreuve-maj.sh` : signature fausse refusée, bonne version posée et relancée, pose ratée sans boucle.
 **Raison :** corriger un mot refusé à tort sans qu'elle ait rien à faire.
 **Alternatives écartées :** le framework Sparkle (plus lourd à emballer, opaque à éprouver) — à reconsidérer si le geste maison bute sur une protection de macOS.
 **Ce qui invaliderait ce choix :** macOS qui refuse qu'une appli non signée par Apple se remplace elle-même.
@@ -52,7 +74,7 @@ Format d'une entrée :
 
 ## 2026-10-06 — Une appli Swift fabriquée sur les Mac de GitHub, sans compte Apple
 
-**Décision :** Swift (paquet SPM, sans projet Xcode), AppKit pour l'icône de la barre des menus et le panneau (NSStatusItem + NSPopover), SwiftUI pour le dessin. Binaire universel (puce Apple + Intel), macOS 12 minimum. Signature ad hoc ; un .dmg pour l'installation, un .zip pour les mises à jour. Fabrication et épreuves sur `macos-15` (GitHub Actions).
+**Décision :** Swift (paquet SPM, sans projet Xcode), AppKit pour l'icône de la barre des menus et le panneau (NSStatusItem + NSPopover), SwiftUI pour le dessin. Binaire universel (puce Apple + Intel), macOS 12 minimum. Signature ad hoc ; un .dmg pour l'installation (sans numéro dans le nom : lien stable), un .zip pour les mises à jour. Fabrication sur `macos-15`, puis la MÊME appli essayée sur `macos-14`, `macos-15`, `macos-26` et `macos-15-intel` (GitHub Actions).
 **Raison :** une appli Mac ne se fabrique que sur un Mac, et Dova n'en a pas. Sans compte Apple Developer (99 €/an), macOS bloque la première ouverture : elle fera « Ouvrir quand même » une fois (Réglages Système → Confidentialité et sécurité), notice à lui écrire.
 **Alternatives écartées :** SwiftBar/xbar (un logiciel de plus à installer, pas de grille) ; Electron/Tauri (100 Mo pour un jeu de mots, ou fabrication aussi sur Mac) ; une page web (ni icône dans la barre des menus, ni hors ligne).
 **Ce qui invaliderait ce choix :** l'achat d'un compte Apple Developer (il suffirait alors d'ajouter la signature et la notarisation à `construire-app.sh`).

@@ -4,26 +4,34 @@ import SwiftUI
 import MotDuJourCore
 
 /// L'appli : l'icône en haut à droite, le panneau qui tombe dessous, le menu
-/// du clic droit, le clavier, et le passage de minuit.
+/// du clic droit, le clavier, le passage de minuit, la mise à jour.
 @MainActor
 final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     enum Mode {
-        case normal
+        /// L'appli de tous les jours. `auDemarrage` : lancée par l'agent de
+        /// lancement de macOS 12 à l'ouverture de session.
+        case normal(auDemarrage: Bool)
         case apercu(URL)
         case icone(URL)
-        case autotest(URL)
-        /// L'épreuve de la mise à jour (fabrication) : dossier, adresse des
-        /// publications servies en local, clé publique d'épreuve.
-        case epreuveMaj(URL, URL, String)
-        /// La relance après une pose, pendant l'épreuve : écrit le bilan.
-        case apresMaj(URL)
-        /// Le contrôle d'une publication par l'appli elle-même (script de publication).
-        case controlePublication(URL)
-        /// L'épreuve d'« Ouvrir au démarrage du Mac » : activer, constater, désactiver.
-        case epreuveDemarrage(URL)
-        /// Le fond de la fenêtre du .dmg (fabrication).
         case fondDmg(URL)
+        case autotest(URL)
+        /// L'épreuve de la mise à jour : le chemin de TOUS LES JOURS (dossiers,
+        /// minuterie, pose, relance sans argument), seules l'adresse des
+        /// publications et la clé changent. Le dossier reçoit le résultat si
+        /// rien n'est posé.
+        case epreuveMaj(URL, URL, String)
+        /// Le contrôle d'une publication par l'appli elle-même (script de
+        /// publication) ; l'adresse, si elle est donnée, remplace celle d'Info.plist.
+        case controlePublication(URL, URL?)
+        /// L'épreuve d'« Ouvrir au démarrage du Mac » : inscrire, constater, défaire.
+        case epreuveDemarrage(URL)
+        /// L'épreuve du vrai clavier : l'appli ordinaire, carnet dans un bac à sable.
+        case epreuveClavier(URL)
+        /// Une photo du vrai panneau ouvert (le mode sombre, par exemple), puis sortie.
+        case montrerPanneau(URL)
     }
+
+    static let notificationOuvrir = Notification.Name("fr.dova.motdujour.ouvrir")
 
     let mode: Mode
     private(set) var modele: Modele!
@@ -47,84 +55,57 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         super.init()
     }
 
-    var estAutotest: Bool { if case .autotest = mode { return true } else { return false } }
+    // MARK: - Le lancement
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Lue ICI, pendant le traitement de l'ouverture : lancée par macOS à
+        // l'ouverture de session (élément d'ouverture), ou par elle ?
+        let lanceeALouverture: Bool = {
+            guard let ev = NSAppleEventManager.shared().currentAppleEvent,
+                  ev.eventID == AEEventID(kAEOpenApplication) else { return false }
+            return ev.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
+        }()
+
         switch mode {
         case .apercu(let dossier):
-            let ok = Apercu.planches(dans: dossier)
-            exit(ok ? 0 : 1)
+            exit(Apercu.planches(dans: dossier) ? 0 : 1)
         case .icone(let dossier):
-            let ok = Apercu.iconesAppli(dans: dossier)
-            exit(ok ? 0 : 1)
+            exit(Apercu.iconesAppli(dans: dossier) ? 0 : 1)
         case .fondDmg(let dossier):
             exit(Apercu.fondDmg(dans: dossier) ? 0 : 1)
-        case .apresMaj(let dossier):
-            // Relancée par le script de pose pendant l'épreuve : le bilan, et c'est tout.
-            journal = Journal(dossier: dossier)
-            let maj = MiseAJour(reglages: Self.reglagesEpreuve(dossier, adresse: dossier, cle: ""), journal: journal)
-            let resultat: String
-            switch maj.bilanAuDemarrage() {
-            case .reussie(let v): resultat = "REUSSI \(v)"
-            case .ratee(let v): resultat = "RATE \(v)"
-            case .rien: resultat = "RIEN"
-            }
-            Self.ecrireResultat(resultat + " — sauvegarde " + (FileManager.default.fileExists(atPath: maj.sauvegarde.path) ? "présente" : "effacée"), dans: dossier)
-            exit(0)
-        case .controlePublication(let dossier):
-            journal = Journal(dossier: dossier)
-            guard let r = MiseAJour.reglagesLivres(memoire: MemoireMiseAJour(dossier: dossier.appendingPathComponent("etat"))) else {
-                Self.ecrireResultat("ECHEC cette fabrication n'a pas de clé de mise à jour", dans: dossier)
-                exit(1)
-            }
-            let reglages = MiseAJour.Reglages(adresse: r.adresse, clePublique: r.clePublique,
-                                              travail: dossier.appendingPathComponent("travail"), memoire: r.memoire,
-                                              accepteLocal: false, relance: [])
-            let maj = MiseAJour(reglages: reglages, journal: journal)
-            Task {
-                switch await maj.controler() {
-                case .acceptee(let v): Self.ecrireResultat("ACCEPTEE \(v)", dans: dossier); exit(0)
-                case .echec(let m): Self.ecrireResultat("ECHEC \(m)", dans: dossier); exit(1)
-                default: Self.ecrireResultat("ECHEC réponse inattendue", dans: dossier); exit(1)
-                }
-            }
+        case .controlePublication(let dossier, let adresse):
+            controlerPublication(dossier, adresse: adresse)
             return
         case .epreuveDemarrage(let dossier):
-            // Activer comme au premier lancement, constater, puis tout défaire.
-            var lignes = ["avant : \(Demarrage.etatLisible)"]
-            var ok = true
-            do {
-                try Demarrage.activer(true)
-                lignes.append("après activation : \(Demarrage.etatLisible)")
-                if !Demarrage.actif { ok = false; lignes.append("ÉCHEC : pas actif après activation") }
-                try Demarrage.activer(false)
-                lignes.append("après désactivation : \(Demarrage.etatLisible)")
-                if Demarrage.actif { ok = false; lignes.append("ÉCHEC : toujours actif après désactivation") }
-            } catch {
-                ok = false
-                lignes.append("ÉCHEC : \(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]")
-            }
-            UserDefaults.standard.removeObject(forKey: "demarrageDejaDecide")
-            Self.ecrireResultat((ok ? "REUSSI" : "ECHEC") + "\n" + lignes.joined(separator: "\n"), dans: dossier)
-            exit(ok ? 0 : 1)
-        case .normal, .autotest, .epreuveMaj:
+            eprouverDemarrage(dossier)
+        case .normal, .autotest, .epreuveMaj, .epreuveClavier, .montrerPanneau:
             break
         }
 
-        let dossier: URL
-        switch mode {
-        case .autotest(let d):
-            // Le bac à sable de l'autotest : jamais le vrai carnet.
-            dossier = d.appendingPathComponent("carnet-autotest", isDirectory: true)
-            try? FileManager.default.removeItem(at: dossier)
-        case .epreuveMaj(let d, _, _):
-            journal = Journal(dossier: d)
-            dossier = d.appendingPathComponent("carnet", isDirectory: true)
-        default:
-            dossier = Depot.dossierParDefaut()
+        // Un seul exemplaire à la fois (deux écriraient le même carnet). Le
+        // second demande au premier d'ouvrir son panneau, puis s'en va.
+        if case .normal = mode, autreExemplaireEnRoute() {
+            DistributedNotificationCenter.default().postNotificationName(Self.notificationOuvrir, object: nil,
+                                                                         userInfo: nil, deliverImmediately: true)
+            NSApp.terminate(nil)
+            return
         }
-        modele = Modele(depot: Depot(dossier: dossier))
-        installerMiseAJour(dossierCarnet: dossier)
+
+        let dossierCarnet: URL
+        switch mode {
+        case .autotest(let d), .epreuveClavier(let d), .montrerPanneau(let d):
+            // Les bacs à sable : jamais le vrai carnet.
+            dossierCarnet = d.appendingPathComponent("carnet-essai", isDirectory: true)
+            try? FileManager.default.removeItem(at: dossierCarnet)
+        default:
+            dossierCarnet = Depot.dossierParDefaut()
+        }
+        modele = Modele(depot: Depot(dossier: dossierCarnet))
+        switch mode {
+        case .normal, .montrerPanneau: modele.rappelerRangement = !Demarrage.dansApplications
+        default: break   // les épreuves tournent hors d'Applications exprès
+        }
+        let bilan = installerMiseAJour(dossierCarnet: dossierCarnet)
 
         installerElement()
         installerPanneau()
@@ -133,73 +114,152 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         minuterie = Timer.scheduledTimer(timeInterval: 20, target: self, selector: #selector(minute(_:)),
                                          userInfo: nil, repeats: true)
-        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(reveil(_:)),
-                                                          name: NSWorkspace.didWakeNotification, object: nil)
+        let centre = NSWorkspace.shared.notificationCenter
+        centre.addObserver(self, selector: #selector(reveil(_:)), name: NSWorkspace.didWakeNotification, object: nil)
+        // Un voyage : le fuseau du Mac change, le jour civil avec lui.
+        NotificationCenter.default.addObserver(self, selector: #selector(fuseauChange(_:)),
+                                               name: .NSSystemTimeZoneDidChange, object: nil)
 
         switch mode {
         case .autotest(let d):
             Autotest(delegue: self, dossier: d).lancer()
-        case .epreuveMaj(let d, _, _):
-            // L'épreuve : chercher tout de suite. Si la pose part, l'appli se
-            // ferme d'elle-même et la suivante écrit le bilan ; sinon on dit pourquoi.
-            Task {
-                let issue = await self.miseAJour?.verifier() ?? .echec("pas de mise à jour installée")
-                switch issue {
-                case .echec(let m): Self.ecrireResultat("ECHEC \(m)", dans: d)
-                case .aJour(let v): Self.ecrireResultat("AJOUR \(v)", dans: d)
-                case .prete(let v): Self.ecrireResultat("PRETE \(v) mais pas posée", dans: d)
-                case .acceptee(let v): Self.ecrireResultat("ACCEPTEE \(v)", dans: d)
+        case .montrerPanneau(let d):
+            // Deux photos : à l'ouverture (avec le rappel « Range-moi… » si
+            // l'appli n'est pas dans Applications), puis une fois le rappel parti.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let self = self else { return }
+                self.ouvrirPanneau()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    Autotest.photographier(self.vueDuPanneau, vers: d.appendingPathComponent("panneau-ouverture.png"))
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) {
+                        Autotest.photographier(self.vueDuPanneau, vers: d.appendingPathComponent("panneau.png"))
+                        exit(0)
+                    }
                 }
-                exit(0)
             }
-        default:
-            Demarrage.activerAuPremierLancement()
-            if modele.premierLancement {
+        case .normal(let auDemarrage):
+            DistributedNotificationCenter.default().addObserver(self, selector: #selector(ouvrirDemande(_:)),
+                                                                name: Self.notificationOuvrir, object: nil)
+            Demarrage.assurer(journal: journal)
+            // Le panneau s'ouvre quand ELLE lance l'appli (un double-clic après
+            // l'avoir quittée, ou si l'icône est cachée par l'encoche) — pas au
+            // démarrage du Mac, pas à la relance qui suit une mise à jour.
+            let relanceDeMiseAJour = (bilan != .rien)
+            if !(lanceeALouverture || auDemarrage || relanceDeMiseAJour) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.ouvrirPanneau() }
             }
+        case .epreuveClavier:
+            break   // le script de l'épreuve clique lui-même sur l'icône
+        default:
+            break
         }
     }
+
+    private func autreExemplaireEnRoute() -> Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        let moi = NSRunningApplication.current.processIdentifier
+        return NSRunningApplication.runningApplications(withBundleIdentifier: id)
+            .contains { $0.processIdentifier != moi && !$0.isTerminated }
+    }
+
+    /// Un double-clic sur l'appli alors qu'elle tourne déjà : le panneau s'ouvre.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        ouvrirPanneau()
+        return false
+    }
+
+    @objc private func ouvrirDemande(_ n: Notification) { ouvrirPanneau() }
 
     // MARK: - La mise à jour
 
-    private func installerMiseAJour(dossierCarnet: URL) {
+    /// Installe la mise à jour selon le mode, et rend le bilan de la pose
+    /// précédente (s'il y en avait une).
+    private func installerMiseAJour(dossierCarnet: URL) -> BilanPose {
+        let memoire = MemoireMiseAJour(dossier: dossierCarnet)
+        let reglages: MiseAJour.Reglages
         switch mode {
-        case .autotest:
-            return   // le bac à sable de l'autotest ne touche pas aux mises à jour
-        case .epreuveMaj(let d, let adresse, let cle):
-            let maj = MiseAJour(reglages: Self.reglagesEpreuve(d, adresse: adresse, cle: cle), journal: journal)
-            maj.bilanAuDemarrage()
-            miseAJour = maj
-        default:
-            guard let r = MiseAJour.reglagesLivres(memoire: MemoireMiseAJour(dossier: dossierCarnet)) else {
+        case .normal:
+            guard let r = MiseAJour.reglagesLivres(memoire: memoire) else {
                 journal.noter("mise à jour : cette fabrication n'a pas de clé, pas de mise à jour automatique")
-                return
+                return .rien
             }
-            let maj = MiseAJour(reglages: r, journal: journal)
-            maj.peutPoser = { [weak self] in !(self?.popover.isShown ?? false) }
-            maj.bilanAuDemarrage()
-            maj.demarrer()
-            miseAJour = maj
+            reglages = r
+        case .epreuveMaj(_, let adresse, let cle):
+            reglages = MiseAJour.Reglages(adresse: adresse, clePublique: cle, travail: MiseAJour.dossierDeTravail(),
+                                          memoire: memoire, accepteLocal: true)
+        default:
+            return .rien   // les bacs à sable ne touchent pas aux mises à jour
         }
+        let maj = MiseAJour(reglages: reglages, journal: journal)
+        maj.peutPoser = { [weak self] in
+            guard let self = self else { return false }
+            return !self.popover.isShown && NSApp.modalWindow == nil
+        }
+        let bilan = maj.bilanAuDemarrage()
+        if case .epreuveMaj(let d, _, _) = mode {
+            // Si la pose part, l'appli se ferme d'elle-même ; sinon on dit pourquoi.
+            maj.apresPremiereVerification = { issue in
+                Self.ecrireResultat(Self.texte(issue), dans: d)
+                exit(0)
+            }
+            maj.demarrer(premiereDans: 2)
+        } else {
+            maj.demarrer()
+        }
+        miseAJour = maj
+        return bilan
     }
 
-    static func reglagesEpreuve(_ d: URL, adresse: URL, cle: String) -> MiseAJour.Reglages {
-        MiseAJour.Reglages(adresse: adresse, clePublique: cle,
-                           travail: d.appendingPathComponent("travail", isDirectory: true),
-                           memoire: MemoireMiseAJour(dossier: d.appendingPathComponent("etat", isDirectory: true)),
-                           accepteLocal: true, relance: ["--apres-maj", d.path])
+    static func texte(_ issue: MiseAJour.Issue) -> String {
+        switch issue {
+        case .echec(let m): return "ECHEC \(m)"
+        case .rienAPoser(let i, let p): return "RIEN installée \(i), publiée \(p)"
+        case .prete(let v): return "PRETE \(v) mais pas posée"
+        case .acceptee(let v): return "ACCEPTEE \(v)"
+        case .occupee: return "OCCUPEE"
+        }
     }
 
     static func ecrireResultat(_ texte: String, dans d: URL) {
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        try? (texte + "\n").write(to: d.appendingPathComponent("resultat-maj.txt"), atomically: true, encoding: .utf8)
+        try? (texte + "\n").write(to: d.appendingPathComponent("resultat.txt"), atomically: true, encoding: .utf8)
     }
 
-    /// Un double-clic sur l'appli alors qu'elle tourne déjà (elle cherche
-    /// l'icône, par exemple) : on ouvre le panneau.
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        ouvrirPanneau()
-        return false
+    private func controlerPublication(_ dossier: URL, adresse: URL?) {
+        journal = Journal(dossier: dossier)
+        let memoire = MemoireMiseAJour(dossier: dossier.appendingPathComponent("etat"))
+        guard let r = MiseAJour.reglagesLivres(memoire: memoire) else {
+            Self.ecrireResultat("ECHEC cette fabrication n'a pas de clé de mise à jour", dans: dossier)
+            exit(1)
+        }
+        let reglages = MiseAJour.Reglages(adresse: adresse ?? r.adresse, clePublique: r.clePublique,
+                                          travail: dossier.appendingPathComponent("travail"), memoire: memoire,
+                                          accepteLocal: false)
+        let maj = MiseAJour(reglages: reglages, journal: journal)
+        Task {
+            let issue = await maj.controler()
+            Self.ecrireResultat(Self.texte(issue), dans: dossier)
+            if case .acceptee = issue { exit(0) } else { exit(1) }
+        }
+    }
+
+    private func eprouverDemarrage(_ dossier: URL) -> Never {
+        // Inscrire comme au premier lancement, constater, puis tout défaire.
+        var lignes = ["rangée dans Applications : \(Demarrage.dansApplications)", "avant : \(Demarrage.etatLisible)"]
+        var ok = true
+        do {
+            try Demarrage.inscrire(true)
+            lignes.append("après inscription : \(Demarrage.etatLisible)")
+            if !Demarrage.actif { ok = false; lignes.append("ÉCHEC : pas active après inscription") }
+            try Demarrage.inscrire(false)
+            lignes.append("après désinscription : \(Demarrage.etatLisible)")
+            if Demarrage.actif { ok = false; lignes.append("ÉCHEC : toujours active après désinscription") }
+        } catch {
+            ok = false
+            lignes.append("ÉCHEC : \(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]")
+        }
+        Self.ecrireResultat((ok ? "REUSSI" : "ECHEC") + "\n" + lignes.joined(separator: "\n"), dans: dossier)
+        exit(ok ? 0 : 1)
     }
 
     // MARK: - L'icône
@@ -209,6 +269,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard let b = element.button else { return }
         b.imagePosition = .imageOnly
         b.toolTip = "Mot du jour"
+        b.setAccessibilityLabel("Mot du jour")
         b.target = self
         b.action = #selector(clic(_:))
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -267,7 +328,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func popoverDidShow(_ notification: Notification) {
         guard moniteurClavier == nil else { return }
         moniteurClavier = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] ev in
-            guard let self = self, self.popover.isShown else { return ev }
+            guard let self = self else { return ev }
             return self.traiterTouche(ev) ? nil : ev
         }
     }
@@ -281,8 +342,13 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         miseAJour?.poserSiPossible()
     }
 
-    /// Le vrai clavier du Mac. Renvoie true si la touche a été prise.
+    /// Le vrai clavier du Mac. Renvoie true si la touche a été prise. Seules
+    /// les frappes destinées AU PANNEAU sont prises : une alerte ouverte depuis
+    /// son menu garde les siennes (tour de code du 06/10 : Entrée partait au
+    /// jeu, Échap fermait le panneau sous l'alerte).
     func traiterTouche(_ ev: NSEvent) -> Bool {
+        guard popover.isShown, NSApp.modalWindow == nil,
+              let fenetre = popover.contentViewController?.view.window, ev.window === fenetre else { return false }
         if ev.modifierFlags.contains(.command) || ev.modifierFlags.contains(.control) { return false }
         switch ev.keyCode {
         case 53: fermerPanneau(); return true                  // Échap
@@ -327,11 +393,13 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             // Si une version est prête et le panneau fermé, elle se pose tout de
             // suite et l'appli se relance : la phrase ci-dessous ne s'affiche pas.
             switch await maj.verifier() {
-            case .aJour(let v):
-                alerte("Mot du jour est à jour", detail: "C'est la version \(v), la dernière publiée.")
+            case .rienAPoser(let installee, _):
+                alerte("Pas de nouvelle version à installer", detail: "Mot du jour \(installee) est installée.")
             case .prete(let v):
                 alerte("La version \(v) est prête",
                        detail: "Elle s'installera toute seule dès que le panneau sera fermé, puis l'appli se relancera.")
+            case .occupee:
+                alerte("Une recherche est déjà en cours", detail: "Réessaie dans un instant.")
             case .acceptee:
                 break
             case .echec(let m):
@@ -357,7 +425,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func menuDemarrage() {
         do {
-            try Demarrage.activer(!Demarrage.actif)
+            try Demarrage.basculer()
+            journal.noter("démarrage automatique : \(Demarrage.etatLisible) (choix dans le menu)")
         } catch {
             alerte("Le réglage du démarrage n'a pas pu être changé", detail: error.localizedDescription)
         }
@@ -366,7 +435,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func menuAPropos() {
         NSApp.activate(ignoringOtherApps: true)
         let credits = NSAttributedString(
-            string: "Le mot du jour de TokenBar, pour le Mac.\nMots : Lexique 3.83 (CC BY-SA 4.0) et Grammalecte (MPL 2.0) — voir CREDITS.md dans l'appli.",
+            string: "Le mot du jour de TokenBar, pour le Mac.\nMots : Lexique 3.83 (CC BY-SA 4.0) et Grammalecte (MPL 2.0) — sources : github.com/rakitchc-art/mot-du-jour-mac",
             attributes: [.font: NSFont.systemFont(ofSize: 11)])
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
@@ -381,7 +450,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         a.runModal()
     }
 
-    // MARK: - Minuit, le réveil
+    // MARK: - Minuit, le réveil, le voyage
 
     /// La minuterie (toutes les 20 s) et la sortie de veille : minuit est-il passé ?
     func tic() {
@@ -394,6 +463,10 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func reveil(_ n: Notification) { tic() }
     @objc private func minute(_ t: Timer) { tic() }
+    @objc private func fuseauChange(_ n: Notification) {
+        NSTimeZone.resetSystemTimeZone()
+        tic()
+    }
 }
 
 /// La racine SwiftUI du panneau : suit le modèle, et — pour la famille « mac »

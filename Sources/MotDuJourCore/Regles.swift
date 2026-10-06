@@ -70,21 +70,30 @@ public func jourLocal(_ date: Date = Date(), fuseau: TimeZone = .current) -> Str
     return String(format: "%04ld-%02ld-%02ld", c.year ?? 1970, c.month ?? 1, c.day ?? 1)
 }
 
-/// L'instant d'un geste, écrit comme le serveur de TokenBar (toISOString).
-public func horodatage(_ date: Date) -> String {
+// Les formateurs se construisent UNE fois (ils coûtent cher à créer, et les
+// statistiques en demandent un par jour joué). ISO8601DateFormatter est sûr
+// entre fils d'exécution.
+private let formateurAvecMillisecondes: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     f.timeZone = TimeZone(secondsFromGMT: 0)
-    return f.string(from: date)
+    return f
+}()
+private let formateurSansMillisecondes: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    f.timeZone = TimeZone(secondsFromGMT: 0)
+    return f
+}()
+
+/// L'instant d'un geste, écrit comme le serveur de TokenBar (toISOString).
+public func horodatage(_ date: Date) -> String {
+    formateurAvecMillisecondes.string(from: date)
 }
 
 /// L'inverse de `horodatage` (accepte aussi l'écriture sans millisecondes).
 public func dateDe(_ horodatage: String) -> Date? {
-    let f = ISO8601DateFormatter()
-    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    if let d = f.date(from: horodatage) { return d }
-    f.formatOptions = [.withInternetDateTime]
-    return f.date(from: horodatage)
+    formateurAvecMillisecondes.date(from: horodatage) ?? formateurSansMillisecondes.date(from: horodatage)
 }
 
 /// Le titre du panneau pour `jour` : « Mot du jour » aujourd'hui, « Hier »,

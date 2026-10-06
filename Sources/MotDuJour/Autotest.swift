@@ -3,10 +3,13 @@ import MotDuJourCore
 
 // ===========================================================================
 //  L'essai automatique, dans la VRAIE appli lancée comme un double-clic : le
-//  vrai panneau sous la vraie icône, et de vraies touches envoyées par la
-//  file d'événements de macOS (elles passent par le même chemin que celles
-//  du clavier). Une partie scriptée : un mot faux, un mot inconnu, cinq
-//  retours arrière, le bon mot, les stats, Échap.
+//  vrai panneau sous la vraie icône, et des touches déposées dans la file
+//  d'événements de l'appli — elles passent par le même moniteur que le vrai
+//  clavier, mais PAS par la prise de main (quelle appli reçoit les frappes) :
+//  celle-là, c'est scripts/epreuve-clavier.sh qui l'éprouve, avec un vrai clic
+//  et de vraies frappes. Une partie scriptée : un mot faux, un mot inconnu,
+//  cinq retours arrière, le bon mot, les stats, Échap ; puis minuit, la flèche
+//  vers hier, le clic sur une case, une deuxième journée.
 //
 //  Il ne touche jamais au vrai carnet (bac à sable dans le dossier de sortie)
 //  ni au démarrage du Mac. Le script de fabrication (scripts/autotest.sh)
@@ -182,7 +185,9 @@ final class Autotest {
             },
             .pause(0.8),
             .faire("trouvé du premier coup : deux jours de série") {
-                let s = self.modele.etat.stats
+                // Les stats ne sont calculées dans la vue que quand elle les
+                // affiche : ici on les demande au cœur directement.
+                let s = statistiques(self.modele.jeu.carnet, aujourdhui: self.modele.aujourdhui)
                 self.verifier(self.modele.etat.message == "Trouvé en 1 !", "« Trouvé en 1 ! »")
                 self.verifier(s.joues == 2 && s.serie == 2 && s.meilleureSerie == 2, "2 joués, série de 2, record 2")
                 self.verifier(!self.modele.pastille, "la pastille s'éteint")
@@ -266,14 +271,21 @@ final class Autotest {
     /// Une photo du panneau tel qu'il est dessiné (la vue elle-même, sans
     /// demander l'autorisation d'enregistrer l'écran).
     private func photographier(_ nom: String) {
-        guard let v = delegue.vueDuPanneau, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else {
-            return noter("  (photo impossible : \(nom))")
+        if let taille = Self.photographier(delegue.vueDuPanneau, vers: dossier.appendingPathComponent(nom)) {
+            noter("  photo : \(nom) (\(taille))")
+        } else {
+            noter("  (photo impossible : \(nom))")
         }
+    }
+
+    /// Rend la taille écrite (« 276 × 405 px »), ou nil si rien n'a été écrit.
+    @discardableResult
+    static func photographier(_ vue: NSView?, vers fichier: URL) -> String? {
+        guard let v = vue, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return nil }
         v.cacheDisplay(in: v.bounds, to: rep)
-        if let png = rep.representation(using: .png, properties: [:]),
-           (try? png.write(to: dossier.appendingPathComponent(nom))) != nil {
-            noter("  photo : \(nom) (\(rep.pixelsWide) × \(rep.pixelsHigh) px)")
-        }
+        guard let png = rep.representation(using: .png, properties: [:]),
+              (try? png.write(to: fichier)) != nil else { return nil }
+        return "\(rep.pixelsWide) × \(rep.pixelsHigh) px"
     }
 
     private func taper(_ texte: String) {

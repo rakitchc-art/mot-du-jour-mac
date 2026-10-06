@@ -25,14 +25,12 @@ marque_telechargement() {   # comme Safari : l'attribut de quarantaine
   xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$1"
 }
 
-# Le Mac en français, pour ce qui se lance à partir de maintenant — et aussi
-# au niveau du système : l'avertissement de Gatekeeper restait en anglais avec
-# le seul réglage de l'utilisateur (2e photo du 06/10).
+# Le Mac en français, pour ce qui se lance à partir de maintenant : le Finder
+# et Réglages Système le prennent. L'avertissement de Gatekeeper, lui, RESTE
+# en anglais (mesuré le 06/10, même avec le réglage du système : il faudrait
+# fermer la session) — la notice le dit sous la photo.
 defaults write -g AppleLanguages -array fr-FR fr en
 defaults write -g AppleLocale -string fr_FR
-sudo -n defaults write /Library/Preferences/.GlobalPreferences AppleLanguages -array fr-FR fr en 2>/dev/null || true
-sudo -n defaults write /Library/Preferences/.GlobalPreferences AppleLocale -string fr_FR 2>/dev/null || true
-killall cfprefsd 2>/dev/null
 killall CoreServicesUIAgent 2>/dev/null
 killall Finder 2>/dev/null
 killall "System Settings" 2>/dev/null

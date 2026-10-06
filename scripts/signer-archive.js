@@ -30,18 +30,30 @@ if (sourceCle.startsWith('env:')) {
 }
 const privee = crypto.createPrivateKey(pem);
 const donnees = fs.readFileSync(archive);
-const signature = crypto.sign(null, donnees, privee).toString('base64');
-fs.writeFileSync(archive + '.sig', signature + '\n');
+const signature = crypto.sign(null, donnees, privee);
 
-// L'effet : la signature écrite, relue, vérifiée avec la clé de l'APPLI.
-const publique = crypto.createPublicKey({
-  key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(publiqueAttendue.trim(), 'base64')]),
-  format: 'der', type: 'spki',
-});
+// D'abord vérifier avec la clé de l'APPLI, ENSUITE écrire : un .sig qui ne
+// correspond pas ne doit jamais exister sur le disque (tour de code du 06/10).
+let publique;
+try {
+  publique = crypto.createPublicKey({
+    key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(publiqueAttendue.trim(), 'base64')]),
+    format: 'der', type: 'spki',
+  });
+} catch (e) {
+  console.error('La clé publique attendue est illisible : ' + e.message);
+  process.exit(1);
+}
+if (!crypto.verify(null, donnees, publique, signature)) {
+  console.error('La signature ne se vérifie PAS avec la clé de l\'appli : la clé privée et Info.plist ne vont pas ensemble.');
+  process.exit(1);
+}
+fs.writeFileSync(archive + '.sig', signature.toString('base64') + '\n');
+// L'effet : le fichier écrit, relu, se vérifie encore.
 const relue = Buffer.from(fs.readFileSync(archive + '.sig', 'utf8').trim(), 'base64');
 if (!crypto.verify(null, donnees, publique, relue)) {
-  console.error('La signature ne se vérifie PAS avec la clé de l\'appli : la clé privée et Info.plist ne vont pas ensemble.');
   fs.unlinkSync(archive + '.sig');
+  console.error('Le .sig relu ne se vérifie plus : retiré.');
   process.exit(1);
 }
 console.log('signée et vérifiée avec la clé de l\'appli : ' + archive + '.sig');

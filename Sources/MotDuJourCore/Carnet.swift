@@ -42,7 +42,10 @@ public struct Grille: Codable, Equatable {
 
 /// Tout ce qui se garde sur le disque.
 public struct Carnet: Codable, Equatable {
-    public var format = 1
+    /// Le format que CETTE version sait lire et écrire. Un carnet d'un format
+    /// plus récent (écrit par une version future) n'est jamais réécrit.
+    public static let formatConnu = 1
+    public var format = Carnet.formatConnu
     /// Le jour de l'installation : les flèches ne remontent pas plus loin
     /// (« jours passés depuis son installation », décision du 06/10/2026).
     public var premierJour: String
@@ -140,6 +143,10 @@ public struct Jeu {
 public final class Depot {
     public let dossier: URL
     public var fichier: URL { dossier.appendingPathComponent("carnet.json") }
+    /// Vrai quand le carnet sur le disque ne doit PAS être réécrit : illisible
+    /// et impossible à mettre de côté, ou écrit par une version plus récente.
+    /// On joue alors sans enregistrer plutôt que d'effacer ses parties.
+    public private(set) var ecritureInterdite = false
 
     public init(dossier: URL) { self.dossier = dossier }
 
@@ -166,11 +173,22 @@ public final class Depot {
         do {
             let data = try Data(contentsOf: fichier)
             var c = try JSONDecoder().decode(Carnet.self, from: data)
+            if c.format > Carnet.formatConnu {
+                ecritureInterdite = true
+                return Chargement(carnet: c, avertissement: "Carnet d'une version plus récente : il n'est pas réécrit")
+            }
             if numeroDeJour(c.premierJour) == nil { c.premierJour = aujourdhui }
             return Chargement(carnet: c, avertissement: nil)
         } catch {
             let cote = dossier.appendingPathComponent("carnet-illisible-\(Int(Date().timeIntervalSince1970)).json")
-            try? fm.moveItem(at: fichier, to: cote)
+            do {
+                try fm.moveItem(at: fichier, to: cote)
+            } catch {
+                // Ni lisible ni déplaçable : on ne l'écrasera pas.
+                ecritureInterdite = true
+                return Chargement(carnet: Carnet(premierJour: aujourdhui),
+                                  avertissement: "Carnet illisible, laissé tel quel : les parties de cette session ne seront pas enregistrées")
+            }
             return Chargement(carnet: Carnet(premierJour: aujourdhui),
                               avertissement: "Carnet illisible, mis de côté : \(cote.lastPathComponent)")
         }
@@ -179,6 +197,10 @@ public final class Depot {
     /// Écrit le carnet d'un seul coup (fichier temporaire puis renommage) :
     /// une coupure au milieu laisse l'ancien intact, jamais un demi-fichier.
     public func enregistrer(_ c: Carnet) throws {
+        if ecritureInterdite {
+            throw NSError(domain: "MotDuJour", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "le carnet sur le disque est protégé, rien n'est écrit"])
+        }
         try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]

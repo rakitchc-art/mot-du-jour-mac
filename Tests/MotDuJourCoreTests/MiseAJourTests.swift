@@ -47,6 +47,15 @@ final class MiseAJourTests: XCTestCase {
         XCTAssertEqual(planDeMiseAJour(p, versionCourante: "1.0.0", refusees: [], accepteLocal: true)?.version, "1.0.1")
     }
 
+    /// Une préversion n'est jamais posée par une appli installée ; seul le
+    /// contrôle du script de publication la regarde.
+    func testUnePreversionNEstPasPourLesApplisInstallees() throws {
+        let json = #"{"tag_name":"v1.0.1","draft":false,"prerelease":true,"assets":[{"name":"Mot-du-jour-1.0.1.zip","browser_download_url":"https://x/a.zip"},{"name":"Mot-du-jour-1.0.1.zip.sig","browser_download_url":"https://x/a.zip.sig"}]}"#
+        let p = try JSONDecoder().decode(Publication.self, from: Data(json.utf8))
+        XCTAssertNil(planDeMiseAJour(p, versionCourante: "1.0.0", refusees: []))
+        XCTAssertEqual(planDeMiseAJour(p, versionCourante: "0.0.0", refusees: [], acceptePrepublication: true)?.version, "1.0.1")
+    }
+
     func dossierTemporaire() -> URL {
         let d = FileManager.default.temporaryDirectory.appendingPathComponent("mdj-maj-\(UUID().uuidString)")
         addTeardownBlock { try? FileManager.default.removeItem(at: d) }

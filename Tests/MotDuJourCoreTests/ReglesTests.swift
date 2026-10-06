@@ -75,7 +75,9 @@ final class ReglesTests: XCTestCase {
         XCTAssertNil(numeroDeJour("2100-02-29"))
     }
 
-    func testJourLocalSuitLeFuseauEtResteGregorien() {
+    /// (Le calendrier grégorien est forcé par construction dans `jourLocal` :
+    /// on ne peut pas changer le calendrier du Mac depuis un test.)
+    func testJourLocalSuitLeFuseau() {
         let instant = dateDe("2026-10-06T22:30:00Z")!
         XCTAssertEqual(jourLocal(instant, fuseau: TimeZone(identifier: "Europe/Paris")!), "2026-10-07")
         XCTAssertEqual(jourLocal(instant, fuseau: TimeZone(identifier: "America/New_York")!), "2026-10-06")
@@ -123,8 +125,8 @@ final class ReglesTests: XCTestCase {
     }
 
     /// La garde de la liste des solutions : la changer décale le mot de chaque
-    /// jour. Ce contrôle rougit si Mots.swift est retouché à la main ; après un
-    /// `Generer-Mots.ps1 -ChangerSolutions` voulu, on régénère les vecteurs.
+    /// jour. Ce contrôle rougit si MotsLexique.swift est retouché à la main ;
+    /// après un `Generer-Mots.ps1 -ChangerSolutions` voulu, on régénère les vecteurs.
     func testListeDesSolutionsFigee() {
         let dico = Dictionnaire.livre
         let empreinte = SHA256.hash(data: Data(dico.solutions.joined(separator: "\n").utf8))
@@ -140,11 +142,17 @@ final class ReglesTests: XCTestCase {
         XCTAssertEqual(vus.count, dico.ordre.count)
     }
 
-    func testLesSolutionsSontAcceptees() {
-        let dico = Dictionnaire.livre
-        XCTAssertTrue(dico.solutions.allSatisfy(dico.accepte))
-        XCTAssertGreaterThan(dico.acceptes.count, 7_000)
-        XCTAssertFalse(dico.accepte("zzzzz"))
+    /// Contre les listes BRUTES : `dico.accepte` contient les solutions par
+    /// construction (union), il ne pouvait pas échouer (relecteur du 06/10).
+    /// Ici : la liste des acceptés de Lexique, telle que générée, doit déjà
+    /// contenir toutes les solutions — comme celle de TokenBar.
+    func testLesSolutionsSontDansLaListeDesAcceptes() {
+        let solutions = Dictionnaire.lire(listeSolutionsBrut)
+        let lexique = Set(Dictionnaire.lire(listeAcceptesLexiqueBrut))
+        let grammalecte = Set(Dictionnaire.lire(listeAcceptesGrammalecteBrut))
+        XCTAssertEqual(solutions.filter { !lexique.contains($0) }, [])
+        XCTAssertTrue(lexique.isDisjoint(with: grammalecte), "un mot ne vit que dans UN fichier de licence")
+        XCTAssertFalse(Dictionnaire.livre.accepte("zzzzz"))
     }
 
     // MARK: la frappe

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mot du jour — installer</title>
+<meta name="description" content="Installer Mot du jour sur ton Mac : un mot de cinq lettres à trouver chaque jour, en haut à droite de l'écran.">
+<style>
+  :root {
+    --fond: #f5f5f7;
+    --carte: #ffffff;
+    --encre: #1d1d1f;
+    --doux: #6e6e73;
+    --trait: #d2d2d7;
+    --accent: #0071e3;
+    --alerte-fond: #fff4e5;
+    --alerte-trait: #f5c26b;
+    --vert: #6aaa64;
+    --jaune: #c9b458;
+    --gris: #787c7e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #000000;
+      --carte: #1c1c1e;
+      --encre: #f5f5f7;
+      --doux: #a1a1a6;
+      --trait: #38383a;
+      --accent: #2997ff;
+      --alerte-fond: #2b2112;
+      --alerte-trait: #8a6a2a;
+      --vert: #538d4e;
+      --jaune: #b59f3b;
+      --gris: #3a3a3c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--encre);
+    font: 17px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 680px; margin: 0 auto; padding: 40px 16px 64px; }
+  header { text-align: center; margin-bottom: 36px; }
+  .icone {
+    width: 96px; height: 96px; margin: 0 auto 18px; border-radius: 22px;
+    background: linear-gradient(#f1f1f0, #d5d5d3);
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    display: grid; grid-template-columns: repeat(3, 19px); grid-template-rows: repeat(2, 19px);
+    gap: 6px; place-content: center;
+  }
+  .icone span { border-radius: 4px; }
+  .icone span.vide { border: 2.5px solid #b2b2b0; }
+  .icone span.n1 { background: #8e8e8c; }
+  .icone span.n2 { background: #787876; }
+  .icone span.n3 { background: #626260; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .chapo { color: var(--doux); margin: 0 auto 24px; max-width: 30em; }
+  .bouton {
+    display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
+    font-weight: 600; padding: 13px 26px; border-radius: 980px; font-size: 17px;
+  }
+  .bouton:hover { filter: brightness(1.08); }
+  .petit { color: var(--doux); font-size: 14px; margin-top: 10px; }
+  section.etape {
+    background: var(--carte); border-radius: 18px; padding: 24px 22px 22px; margin: 18px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .etape h2 { display: flex; align-items: center; gap: 12px; font-size: 21px; margin: 0 0 10px; }
+  .numero {
+    flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--encre); color: var(--carte);
+    display: grid; place-items: center; font-size: 16px; font-weight: 700;
+  }
+  .etape p { margin: 8px 0; }
+  figure { margin: 16px 0 4px; text-align: center; }
+  figure img {
+    max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--trait);
+    background: #fff;
+  }
+  figcaption { color: var(--doux); font-size: 14px; margin-top: 8px; }
+  .deux { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  .deux figure { flex: 1 1 220px; margin-top: 12px; }
+  .attention {
+    background: var(--alerte-fond); border: 1px solid var(--alerte-trait); border-radius: 12px;
+    padding: 12px 14px; margin: 14px 0 4px;
+  }
+  b { font-weight: 650; }
+  h2.titre { font-size: 24px; margin: 44px 0 6px; }
+  ul.jeu { padding-left: 1.2em; }
+  ul.jeu li { margin: 8px 0; }
+  .case {
+    display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 5px;
+    color: #fff; font-weight: 700; font-size: 15px; vertical-align: -6px; margin-right: 6px;
+  }
+  .case.v { background: var(--vert); }
+  .case.j { background: var(--jaune); }
+  .case.g { background: var(--gris); }
+  details { background: var(--carte); border-radius: 14px; padding: 14px 18px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p { margin: 10px 0 2px; }
+  footer { color: var(--doux); font-size: 14px; text-align: center; margin-top: 48px; }
+  footer a { color: var(--doux); }
+  @media (max-width: 480px) {
+    main { padding-top: 28px; }
+    h1 { font-size: 29px; }
+    section.etape { padding: 20px 16px 18px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="icone" aria-hidden="true">
+      <span class="vide"></span><span class="vide"></span><span class="vide"></span>
+      <span class="n1"></span><span class="n2"></span><span class="n3"></span>
+    </div>
+    <h1>Mot du jour</h1>
+    <p class="chapo">Un mot de cinq lettres à trouver chaque jour, d'un clic sur une petite icône en haut à droite de ton Mac.</p>
+    <a class="bouton" href="https://github.com/rakitchc-art/mot-du-jour-mac/releases/latest/download/Mot-du-jour.dmg">Télécharger Mot du jour</a>
+    <p class="petit">1 Mo · pour Mac, macOS 12 ou plus récent · installation en deux minutes</p>
+  </header>
+
+  <section class="etape">
+    <h2><span class="numero">1</span> Glisse-la dans Applications</h2>
+    <p>Dans tes <b>Téléchargements</b>, double-clique sur <b>Mot-du-jour.dmg</b>. Une petite fenêtre s'ouvre : fais glisser <b>Mot du jour</b> sur le dossier <b>Applications</b>.</p>
+    <figure><img src="images/1-glisser.png" width="540" height="340" alt="La fenêtre du fichier téléchargé : l'icône Mot du jour, une flèche, et le dossier Applications."></figure>
+  </section>
+
+  <section class="etape">
+    <h2><span class="numero">2</span> Ouvre-la</h2>
+    <p>Ouvre le dossier <b>Applications</b> et double-clique sur <b>Mot du jour</b>. La première fois, ton Mac l'arrête : c'est normal, elle n'est pas vendue sur l'App Store.</p>
+    <p class="attention">Clique sur <b>Terminé</b> (ou <b>OK</b>) — surtout pas sur <b>Placer dans la corbeille</b>, même si c'est le bouton bleu.</p>
+    <div class="deux">
+      <figure><img src="images/2-avertissement-26.png" width="272" height="297" alt="L'avertissement sur macOS 26 : le bouton bleu Placer dans la corbeille en haut, Terminé en dessous."><figcaption>macOS 26 : <b>Terminé</b> est en bas</figcaption></figure>
+      <figure><img src="images/2-avertissement-15.png" width="274" height="246" alt="L'avertissement sur macOS 15 : Terminé à gauche, Placer dans la corbeille à droite."><figcaption>macOS 15 : <b>Terminé</b> est à gauche</figcaption></figure>
+    </div>
+    <p class="petit">Les photos viennent d'un Mac réglé en anglais ; sur le tien, la fenêtre est en français.</p>
+  </section>
+
+  <section class="etape">
+    <h2><span class="numero">3</span> Autorise-la, une seule fois</h2>
+    <p>Menu <b></b> (en haut à gauche de l'écran) → <b>Réglages Système</b> → <b>Confidentialité et sécurité</b>. Descends jusqu'à <b>Sécurité</b> et clique sur <b>Ouvrir quand même</b>.</p>
+    <figure><img src="images/3-ouvrir-quand-meme.png" width="558" height="176" alt="Réglages Système, section Sécurité : « Mot du jour » a été bloqué pour protéger votre Mac, avec le bouton Ouvrir quand même."></figure>
+    <p>Ton Mac te demande ton mot de passe (ou ton doigt), puis une dernière confirmation : clique encore sur <b>Ouvrir quand même</b>. C'est la seule fois.</p>
+  </section>
+
+  <section class="etape">
+    <h2><span class="numero">4</span> C'est prêt</h2>
+    <p>L'icône apparaît <b>en haut à droite</b> de ton écran, et le panneau s'ouvre tout seul la première fois. Ensuite, un clic sur l'icône l'ouvre, un clic ailleurs le ferme.</p>
+    <figure><img src="images/4-pret.png" width="424" height="448" alt="La petite icône en grille dans la barre en haut à droite, et le panneau du mot du jour ouvert dessous."></figure>
+    <p class="petit">Elle se rouvre toute seule à chaque démarrage du Mac, et se met à jour toute seule. Ton Mac peut afficher une notification « Éléments d'arrière-plan ajoutés » : c'est normal, c'est justement ce qui la fait revenir à chaque démarrage.</p>
+  </section>
+
+  <h2 class="titre">Comment jouer</h2>
+  <ul class="jeu">
+    <li>Tape un mot de cinq lettres au clavier, puis <b>Entrée</b>. Tu as six essais.</li>
+    <li><span class="case v">A</span> la lettre est dans le mot, à la bonne place.</li>
+    <li><span class="case j">A</span> la lettre est dans le mot, mais ailleurs.</li>
+    <li><span class="case g">A</span> la lettre n'est pas dans le mot.</li>
+    <li>Un mot inconnu ne compte pas : la ligne tremble, tu retapes. Les accents s'enlèvent tout seuls.</li>
+    <li>Un nouveau mot chaque jour à minuit ; un petit point sur l'icône te rappelle qu'il t'attend.</li>
+    <li>Les flèches <b>‹ ›</b> à côté du titre : les jours passés, que tu peux rattraper.</li>
+    <li>Le petit graphique : tes statistiques (série, record, répartition).</li>
+    <li>Clic droit sur l'icône : les réglages (ouverture au démarrage, mise à jour, quitter).</li>
+  </ul>
+
+  <h2 class="titre">Un souci ?</h2>
+  <details>
+    <summary>Je ne vois pas l'icône en haut à droite</summary>
+    <p>Si ta barre est très remplie (surtout sur un MacBook à encoche), l'icône peut être cachée. Rouvre <b>Mot du jour</b> depuis Applications : le panneau s'ouvre quand même. Sur macOS 26, regarde aussi <b>Réglages Système → Barre des menus</b> : Mot du jour doit y être autorisée.</p>
+  </details>
+  <details>
+    <summary>Le panneau me dit « Range-moi dans Applications »</summary>
+    <p>Tu l'as ouverte directement depuis le fichier téléchargé : elle marche, mais ne restera pas. Fais l'étape 1 (glisse-la dans Applications), puis rouvre-la depuis Applications.</p>
+  </details>
+  <details>
+    <summary>Mon Mac est plus ancien (macOS 14 ou avant)</summary>
+    <p>À l'étape 2, l'avertissement n'a qu'un bouton <b>OK</b> : clique dessus, puis fais l'étape 3 comme indiqué. Autre chemin : un <b>clic droit</b> sur Mot du jour dans Applications → <b>Ouvrir</b> → <b>Ouvrir</b>.</p>
+  </details>
+  <details>
+    <summary>J'ai cliqué sur « Placer dans la corbeille »</summary>
+    <p>Pas grave : retélécharge-la avec le bouton tout en haut et recommence à l'étape 1.</p>
+  </details>
+
+  <footer>
+    <p>Mot du jour — le mot du jour de TokenBar, pour le Mac.<br>
+    Mots : Lexique 3.83 (CC BY-SA 4.0) et Grammalecte (MPL 2.0) ·
+    <a href="https://github.com/rakitchc-art/mot-du-jour-mac">le code et les versions</a></p>
+  </footer>
+</main>
+</body>
+</html>

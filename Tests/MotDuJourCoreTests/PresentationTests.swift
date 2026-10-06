@@ -63,6 +63,16 @@ final class PresentationTests: XCTestCase {
         XCTAssertTrue(v.suivantPossible)
     }
 
+    func testLesStatsNeSeCalculentQuAffichees() {
+        var jeu = Jeu(dico: dico, carnet: Carnet(premierJour: "2026-10-06"))
+        _ = jeu.proposer(jeu.solution("2026-10-06")!, jour: "2026-10-06", aujourdhui: "2026-10-06")
+        XCTAssertEqual(vue(jeu, "2026-10-06").stats, Statistiques(), "grille affichée : pas de calcul")
+        let v = presenter(jeu: jeu, jour: "2026-10-06", aujourdhui: "2026-10-06", saisie: Saisie(),
+                          message: nil, vueStats: true, fuseau: utc)
+        XCTAssertEqual(v.stats.joues, 1)
+        XCTAssertEqual(v.stats.trouves, 1)
+    }
+
     func testLeMessagePassagerPasseDevant() {
         let jeu = Jeu(dico: dico, carnet: Carnet(premierJour: "2026-10-06"))
         var s = Saisie(); for c in "zzzzz" { s.taper(c) }

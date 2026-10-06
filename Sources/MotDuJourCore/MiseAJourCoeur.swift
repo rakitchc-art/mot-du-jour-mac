@@ -70,9 +70,14 @@ public func adresseAcceptable(_ u: URL, accepteLocal: Bool) -> Bool {
 }
 
 /// Que faire de la dernière publication ? nil = rien.
+/// `acceptePrepublication` ne sert qu'au contrôle d'une publication par le
+/// script de publication : elle est d'abord mise en ligne en « préversion »
+/// (invisible des applis installées), jugée par l'appli, puis seulement
+/// rendue « dernière version ». Une appli installée ne le passe jamais.
 public func planDeMiseAJour(_ p: Publication, versionCourante: String, refusees: Set<String>,
-                            accepteLocal: Bool = false) -> PlanMiseAJour? {
-    if p.draft == true || p.prerelease == true { return nil }
+                            accepteLocal: Bool = false, acceptePrepublication: Bool = false) -> PlanMiseAJour? {
+    if p.draft == true { return nil }
+    if p.prerelease == true && !acceptePrepublication { return nil }
     guard let comps = composantesVersion(p.tag_name) else { return nil }
     let version = comps.map(String.init).joined(separator: ".")
     guard estPlusRecente(version, que: versionCourante), !refusees.contains(version) else { return nil }
@@ -121,8 +126,14 @@ public enum BilanPose: Equatable {
 /// refus sur le disque AVANT de rendre la main, et efface l'annonce.
 public final class MemoireMiseAJour {
     public let dossier: URL
-    var fichierAttendue: URL { dossier.appendingPathComponent("maj-attendue.json") }
+    /// L'annonce d'une pose : le script de pose la surveille — tant qu'elle est
+    /// là, la neuve n'a pas fait son bilan (elle l'efface en démarrant).
+    public var fichierAttendue: URL { dossier.appendingPathComponent("maj-attendue.json") }
     var fichierRefusees: URL { dossier.appendingPathComponent("maj-refusees.json") }
+    /// L'ancienne version, mise de côté pendant une pose. Ici (Application
+    /// Support) et pas dans les Caches, que macOS peut vider : c'est elle qui
+    /// revient si la neuve ne démarre pas.
+    public var sauvegarde: URL { dossier.appendingPathComponent("ancienne.app", isDirectory: true) }
 
     public init(dossier: URL) { self.dossier = dossier }
 

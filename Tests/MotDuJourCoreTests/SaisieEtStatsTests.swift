@@ -119,6 +119,20 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(s.meilleureSerie, 2)
     }
 
+    /// Le relecteur du 06/10 l'a montré : aucun test ne prouvait cette règle
+    /// (en la retirant d'une copie, tout restait vert). Trouvé / RIEN / trouvé :
+    /// la série vaut 1, pas 2.
+    func testUnJourPasseSansGrilleCasseLaSerie() {
+        var c = Carnet(premierJour: "2026-10-01")
+        c.grilles["2026-10-01"] = grille(3, trouve: true, le: "2026-10-01")
+        // le 02 : pas joué
+        c.grilles["2026-10-03"] = grille(2, trouve: true, le: "2026-10-03")
+        let s = statistiques(c, aujourdhui: "2026-10-03", fuseau: utc)
+        XCTAssertEqual(s.serie, 1)
+        XCTAssertEqual(s.meilleureSerie, 1)
+        XCTAssertEqual(s.joues, 2)
+    }
+
     func testUnCarnetNeuf() {
         let s = statistiques(Carnet(premierJour: "2026-10-07"), aujourdhui: "2026-10-07", fuseau: utc)
         XCTAssertEqual(s, Statistiques())

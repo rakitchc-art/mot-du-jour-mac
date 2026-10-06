@@ -1,9 +1,11 @@
 # L'appli est fabriquée UNE fois (sur macOS 15, puce Apple), puis la MÊME est
 # essayée sur quatre Mac : macOS 14, 15 et 26 à puce Apple, et un Mac Intel.
-# Sur chacun : les planches, une partie jouée dans le vrai panneau (minuit
-# compris), la mise à jour posée en vrai dans /Applications, le démarrage
-# automatique, et les photos de la notice. Sur une étiquette vX.Y.Z (posée par
-# scripts/Publier.ps1), elle n'est publiée que si les quatre sont verts.
+# Sur chacun : les planches (pas sur le Mac Intel, sans carte graphique), une
+# partie jouée dans le vrai panneau (minuit compris), la mise à jour posée en
+# vrai dans /Applications (signature fausse, bonne, pose ratée), le démarrage
+# automatique, le vrai clavier, et les photos de la notice. Sur une étiquette
+# vX.Y.Z (posée par scripts/Publier.ps1), elle n'est publiée que si les quatre
+# sont verts.
 name: Fabriquer
 
 on:
@@ -12,8 +14,9 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# Lecture seule partout ; seul le job « publier » reçoit le droit d'écrire.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: fabriquer-${{ github.ref }}
@@ -79,6 +82,10 @@ jobs:
         timeout-minutes: 3
         run: bash scripts/epreuve-demarrage.sh
 
+      - name: Épreuve du vrai clavier (vrai clic, vraies frappes)
+        timeout-minutes: 4
+        run: bash scripts/epreuve-clavier.sh
+
       - name: Photos de la notice (en dernier, change la langue du Mac)
         continue-on-error: true
         timeout-minutes: 3
@@ -97,6 +104,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-15
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
