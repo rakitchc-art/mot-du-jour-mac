@@ -2,8 +2,9 @@
 # essayée sur quatre Mac : macOS 14, 15 et 26 à puce Apple, et un Mac Intel.
 # Sur chacun : les planches (pas sur le Mac Intel, sans carte graphique), une
 # partie jouée dans le vrai panneau (minuit compris), la mise à jour posée en
-# vrai dans /Applications (signature fausse, bonne, pose ratée), le démarrage
-# automatique, le vrai clavier, et les photos de la notice. Sur une étiquette
+# vrai dans /Applications (le chemin de tous les jours, signature fausse,
+# bonne, pose ratée), le démarrage automatique, le vrai clavier, et les photos
+# de la notice. Sur une étiquette
 # vX.Y.Z (posée par scripts/Publier.ps1), elle n'est publiée que si les quatre
 # sont verts.
 name: Fabriquer
@@ -74,13 +75,16 @@ jobs:
         timeout-minutes: 6
         run: bash scripts/autotest.sh
 
-      - name: Épreuve de la mise à jour
-        timeout-minutes: 6
-        run: bash scripts/epreuve-maj.sh
-
+      # Le démarrage automatique AVANT la mise à jour : celle-ci laisse l'appli
+      # inscrite, et l'épreuve du démarrage doit partir d'un Mac où elle ne
+      # l'est pas (sinon elle passerait sans rien prouver).
       - name: Épreuve du démarrage automatique
         timeout-minutes: 3
         run: bash scripts/epreuve-demarrage.sh
+
+      - name: Épreuve de la mise à jour
+        timeout-minutes: 8
+        run: bash scripts/epreuve-maj.sh
 
       - name: Épreuve du vrai clavier (vrai clic, vraies frappes)
         timeout-minutes: 4
@@ -108,7 +112,6 @@ jobs:
             !sortie/**/*.app/
             !sortie/**/*.dmg
             !sortie/**/*.zip
-            !sortie/epreuve-maj/dmg-src/
           if-no-files-found: warn
 
   publier:

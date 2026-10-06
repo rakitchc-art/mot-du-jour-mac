@@ -8,7 +8,7 @@
 #  Ici : une autre appli au premier plan (le Finder), un VRAI clic de souris
 #  sur l'icône, puis de VRAIES frappes (« abces », Entrée) envoyées au clavier
 #  de macOS. Réussi si le mot est arrivé dans le carnet du jeu.
-#  Puis Échap doit fermer le panneau.
+#  Puis Échap : seulement photographié (apres-echap.png), pas vérifié.
 # ============================================================================
 set -uo pipefail
 cd "$(dirname "$0")/.."

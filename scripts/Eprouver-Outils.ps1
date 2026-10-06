@@ -58,7 +58,8 @@ try {
         }
         Verifier ((Code '/%E0%A4%A') -eq 400) '« % » mal formé : 400'
         Verifier ((Code '/a.json') -eq 200) '… et le serveur répond toujours'
-        Verifier ((Code '/..%2f..%2fWindows%2fwin.ini') -in @(403, 404)) 'remontée de dossier : refusée'
+        # 403 seulement : sans sa garde, le serveur répond 404 (fichier absent) — mesuré le 06/10.
+        Verifier ((Code '/..%2f..%2fWindows%2fwin.ini') -eq 403) 'remontée de dossier : refusée par la garde (403)'
     } finally {
         Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     }

@@ -36,6 +36,13 @@ enum Isolement {
         return resultat.takeRetainedValue() as URL
     }
 
+    /// Rangée dans un dossier Applications — par son VRAI emplacement, isolée
+    /// ou non. nil : isolée, vrai emplacement inconnu.
+    static var estRangee: Bool? {
+        let reel = estIsolee ? cheminDOrigine() : Bundle.main.bundleURL
+        return reel.map { Demarrage.estDansApplications($0.path) }
+    }
+
     /// Si l'appli est isolée alors que son vrai emplacement est dans
     /// Applications : retire la marque de téléchargement de ce dossier et
     /// relance l'appli depuis là, avec les mêmes arguments. Renvoie true si la
@@ -70,20 +77,65 @@ enum Isolement {
             journal.noter("isolement : la marque de téléchargement est restée sur \(origine.path)\(detail)")
             return false
         }
-        // La relance attend que CET exemplaire soit parti : sinon elle
-        // trouverait l'appli déjà en route et s'effacerait devant lui.
-        let relance = Process()
-        relance.executableURL = URL(fileURLWithPath: "/bin/sh")
-        let script = "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; shift; exec /usr/bin/open \"$0\" --args \"$@\""
-        relance.arguments = ["-c", script, origine.path, String(ProcessInfo.processInfo.processIdentifier)]
-            + CommandLine.arguments.dropFirst() + [marqueRelance]
-        do {
-            try relance.run()
-        } catch {
-            journal.noter("isolement : relance impossible — \(error.localizedDescription)")
+        guard relancer(origine, arguments: Array(CommandLine.arguments.dropFirst()) + [marqueRelance], journal: journal) else {
             return false
         }
         journal.noter("isolement : lancée depuis une copie isolée par macOS ; marque retirée de \(origine.path), relance depuis là")
         return true
+    }
+
+    // MARK: - Céder la place
+
+    // Ouverte d'abord depuis le .dmg (l'erreur facile), puis rangée et rouverte
+    // depuis Applications : sans cette règle, c'est la copie du .dmg — déjà en
+    // route — qui rouvrait son panneau (« Range-moi… » sans fin), et celle
+    // d'Applications ne s'inscrivait jamais au démarrage (relecture du 06/10).
+    // Donc une copie HORS d'Applications cède toujours la place à celle
+    // d'Applications, dès qu'il y en a une.
+
+    /// La copie rangée dans un dossier Applications (même identifiant), s'il y en a une.
+    static func copieRangee() -> URL? {
+        let nom = Bundle.main.bundleURL.lastPathComponent
+        let dossiers = [URL(fileURLWithPath: "/Applications", isDirectory: true),
+                        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true)]
+        return dossiers.map { $0.appendingPathComponent(nom, isDirectory: true) }
+            .first { Bundle(url: $0)?.bundleIdentifier == Bundle.main.bundleIdentifier }
+    }
+
+    /// Hors d'Applications (et SÛREMENT hors : un vrai emplacement inconnu ne
+    /// cède jamais, sinon une appli isolée se relancerait elle-même sans fin)
+    /// avec une copie rangée : la lance une fois celle-ci partie. Renvoie true
+    /// si la relance est partie — l'appelant doit alors quitter.
+    static func cederSiPossible(journal: Journal) -> Bool {
+        guard estRangee == false, let copie = copieRangee() else { return false }
+        guard relancer(copie, arguments: [], journal: journal) else { return false }
+        journal.noter("rangement : ouverte hors d'Applications (\(Bundle.main.bundlePath)) — cède la place à \(copie.path)")
+        return true
+    }
+
+    // MARK: - Relancer
+
+    /// Lance l'appli rangée à `emplacement` dès que CET exemplaire est parti
+    /// (sinon elle le trouverait en route et s'effacerait devant lui) — une
+    /// minute d'attente au plus. Un lancement raté s'écrit au journal.
+    static func relancer(_ emplacement: URL, arguments: [String], journal: Journal) -> Bool {
+        let relance = Process()
+        relance.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let script = """
+            n=0
+            while kill -0 "$1" 2>/dev/null && [ "$n" -lt 300 ]; do n=$((n + 1)); sleep 0.2; done
+            j="$2"; shift 2
+            if [ "$#" -gt 0 ]; then /usr/bin/open "$0" --args "$@"; else /usr/bin/open "$0"; fi \
+              || echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)  relance : macOS n'a pas lancé $0" >> "$j"
+            """
+        relance.arguments = ["-c", script, emplacement.path, String(ProcessInfo.processInfo.processIdentifier),
+                             journal.fichier.path] + arguments
+        do {
+            try relance.run()
+            return true
+        } catch {
+            journal.noter("relance impossible — \(error.localizedDescription)")
+            return false
+        }
     }
 }

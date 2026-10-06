@@ -13,6 +13,10 @@
 #    B. la bonne : la neuve tourne, la sauvegarde de l'ancienne est effacée ;
 #    C. une pose qui RATE (appli installée verrouillée) : l'ancienne reste,
 #       la version est refusée pour toujours — pas de boucle.
+#    D. (en premier) le chemin de tous les jours SANS argument : ouverte
+#       d'abord depuis le .dmg, puis glissée dans Applications et rouverte de
+#       là — la copie du .dmg cède la place, celle d'Applications sort de
+#       l'isolement, s'inscrit au démarrage et reste seule en route.
 #
 #  L'autorisation des adresses locales (http://127.0.0.1) est ajoutée aux
 #  COPIES d'épreuve, jamais à l'appli livrée.
@@ -31,6 +35,10 @@ SUPPORT="$HOME/Library/Application Support/Mot du jour"
 LOGS="$HOME/Library/Logs/Mot du jour"
 JOURNAL="$LOGS/journal.txt"
 TRAVAIL="$HOME/Library/Caches/fr.dova.motdujour"
+# Hors de sortie/ (qui part en pièce jointe) : la clé privée d'épreuve, les
+# .dmg et le dossier source du .dmg (son raccourci vers /Applications ferait
+# parcourir tout le Mac à l'envoi — passage du 06/10).
+TMPEP=$(mktemp -d)
 rm -rf "$EP"
 mkdir -p "$EP/serveur/faux" "$EP/neuve"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
@@ -44,7 +52,8 @@ echec() {
   done
   [ -n "$SERVEUR" ] && kill "$SERVEUR" 2>/dev/null
   chflags -R nouchg "$INSTALLEE" 2>/dev/null
-  rm -f "$EP/cle/cle-maj-privee.pem"   # jetable, mais jamais dans une pièce jointe publique
+  for v in /Volumes/Mot\ du\ jour\ epreuve*; do [ -d "$v" ] && hdiutil detach "$v" -force > /dev/null 2>&1; done
+  rm -rf "$TMPEP"
   exit 1
 }
 attendre_fichier() {   # attendre_fichier <fichier> <secondes>
@@ -68,17 +77,16 @@ autoriser_local() {   # sur une copie d'épreuve seulement
   codesign --force --deep --sign - "$1"
 }
 preparer_dmg() {   # un .dmg comme celui qu'elle télécharge, avec la copie d'épreuve
-  rm -rf "$EP/dmg-src"
-  mkdir -p "$EP/dmg-src"
-  cp -R "$APP" "$EP/dmg-src/"
-  autoriser_local "$EP/dmg-src/Mot du jour.app" > /dev/null 2>&1 || echec "copie d'épreuve"
-  ln -s /Applications "$EP/dmg-src/Applications"
-  hdiutil create -volname "Mot du jour epreuve" -srcfolder "$EP/dmg-src" -ov -format UDZO "$EP/epreuve.dmg" > /dev/null \
+  mkdir -p "$TMPEP/dmg-src"
+  cp -R "$APP" "$TMPEP/dmg-src/"
+  autoriser_local "$TMPEP/dmg-src/Mot du jour.app" > /dev/null 2>&1 || echec "copie d'épreuve"
+  ln -s /Applications "$TMPEP/dmg-src/Applications"
+  hdiutil create -volname "Mot du jour epreuve" -srcfolder "$TMPEP/dmg-src" -ov -format UDZO "$TMPEP/epreuve.dmg" > /dev/null \
     || echec "fabrication du .dmg d'épreuve"
-  # Le dossier source a un raccourci vers /Applications : il ne doit pas rester
-  # dans sortie/ (l'envoi des fichiers d'essai le suivrait dans tout le Mac).
-  rm -rf "$EP/dmg-src"
-  xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$EP/epreuve.dmg"
+  # Le même sans la marque de téléchargement : pour D, la copie ouverte depuis
+  # le .dmg (chez elle, elle l'aura autorisée ; ici, rien ne peut le faire).
+  cp "$TMPEP/epreuve.dmg" "$TMPEP/sans-marque.dmg"
+  xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$TMPEP/epreuve.dmg"
 }
 installer() {   # comme ELLE : le .dmg téléchargé ouvert, l'appli glissée par le FINDER
   # (mesuré le 06/10 : posée par `cp` OU glissée par le Finder, avec la marque
@@ -87,29 +95,37 @@ installer() {   # comme ELLE : le .dmg téléchargé ouvert, l'appli glissée pa
   # voir Sources/MotDuJour/Isolement.swift.)
   chflags -R nouchg "$INSTALLEE" 2>/dev/null
   rm -rf "$INSTALLEE"
-  hdiutil attach -noautoopen "$EP/epreuve.dmg" > "$EP/attache.txt" || echec "montage du .dmg d'épreuve"
-  VOL=$(grep -o '/Volumes/.*$' "$EP/attache.txt" | head -1)
+  monter "$TMPEP/epreuve.dmg"
+  glisser
+  demonter
+}
+monter() {   # monter <.dmg> : ouvert comme d'un double-clic ; son volume dans VOL
+  hdiutil attach -noautoopen "$1" > "$TMPEP/attache.txt" || echec "montage de $1"
+  VOL=$(grep -o '/Volumes/.*$' "$TMPEP/attache.txt" | head -1)
+  [ -d "$VOL/Mot du jour.app" ] || echec "le .dmg monté n'a pas l'appli ($VOL)"
+}
+demonter() { hdiutil detach "$VOL" > /dev/null 2>&1 || hdiutil detach "$VOL" -force > /dev/null 2>&1; }
+glisser() {   # depuis le .dmg monté (VOL), par le FINDER, puis « Ouvrir quand même »
   osascript -e "tell application \"Finder\" to duplicate (POSIX file \"$VOL/Mot du jour.app\" as alias) to (POSIX file \"/Applications\" as alias) with replacing" \
     > /dev/null || echec "copie par le Finder"
-  hdiutil detach "$VOL" -force > /dev/null 2>&1
   [ -d "$INSTALLEE" ] || echec "le Finder n'a rien posé dans /Applications"
   Q=$(xattr -p com.apple.quarantine "$INSTALLEE" 2>/dev/null)
   echo "marque posée par le Finder : ${Q:-aucune}"
+  # Sans marque, l'épreuve n'imiterait plus son installation (ni l'isolement).
+  [ -n "$Q" ] || echec "le Finder n'a posé aucune marque de téléchargement : l'épreuve n'imite plus son installation"
   # « Ouvrir quand même » : le drapeau 0x40 (ouverte avec son accord) s'ajoute
   # à ceux que le Finder a posés.
-  if [ -n "$Q" ]; then
-    DRAPEAUX=$(printf "%04x" $(( 0x${Q%%;*} | 0x40 )))
-    xattr -w com.apple.quarantine "$DRAPEAUX;${Q#*;}" "$INSTALLEE"
-    echo "marque après « Ouvrir quand même » : $(xattr -p com.apple.quarantine "$INSTALLEE")"
-  fi
+  DRAPEAUX=$(printf "%04x" $(( 0x${Q%%;*} | 0x40 )))
+  xattr -w com.apple.quarantine "$DRAPEAUX;${Q#*;}" "$INSTALLEE"
+  echo "marque après « Ouvrir quand même » : $(xattr -p com.apple.quarantine "$INSTALLEE")"
 }
 lancer() {   # lancer <dossier du résultat> <publication> : comme un double-clic
   open -n "$INSTALLEE" --args --epreuve-maj "$1" "http://127.0.0.1:$PORT/$2" "$CLE" &
 }
 
 # 1. Une clé d'épreuve, jetable.
-node scripts/creer-cle.js "$EP/cle" > /dev/null || echec "clé d'épreuve"
-CLE=$(tr -d '\n' < "$EP/cle/cle-maj-publique.txt")
+node scripts/creer-cle.js "$TMPEP/cle" > /dev/null || echec "clé d'épreuve"
+CLE=$(tr -d '\n' < "$TMPEP/cle/cle-maj-publique.txt")
 
 # 2. La « version suivante » : la même appli, numéro $NEUVE_V, re-signée ad hoc.
 cp -R "$APP" "$EP/neuve/"
@@ -117,11 +133,11 @@ cp -R "$APP" "$EP/neuve/"
 autoriser_local "$EP/neuve/Mot du jour.app" > /dev/null 2>&1 || echec "signature de code de la neuve"
 ZIP="Mot-du-jour-$NEUVE_V.zip"
 ( cd "$EP/neuve" && ditto -c -k --sequesterRsrc --keepParent "Mot du jour.app" "$EP/serveur/$ZIP" )
-node scripts/signer-archive.js "$EP/serveur/$ZIP" "$EP/cle/cle-maj-privee.pem" "$CLE" || echec "signature de l'archive"
+node scripts/signer-archive.js "$EP/serveur/$ZIP" "$TMPEP/cle/cle-maj-privee.pem" "$CLE" || echec "signature de l'archive"
 # La signature fausse : une vraie signature… d'un autre contenu.
 cp "$EP/serveur/$ZIP" "$EP/serveur/faux/$ZIP"
 printf 'autre chose' > "$EP/autre.bin"
-node scripts/signer-archive.js "$EP/autre.bin" "$EP/cle/cle-maj-privee.pem" "$CLE" > /dev/null || echec "fausse signature"
+node scripts/signer-archive.js "$EP/autre.bin" "$TMPEP/cle/cle-maj-privee.pem" "$CLE" > /dev/null || echec "fausse signature"
 cp "$EP/autre.bin.sig" "$EP/serveur/faux/$ZIP.sig"
 
 # 3. Les publications, au format de l'API de GitHub, servies par la machine.
@@ -144,6 +160,39 @@ curl -sS -m 5 -o /dev/null -w "serveur local : HTTP %{http_code}\n" "http://127.
   || echec "le serveur d'épreuve ne répond pas"
 
 preparer_dmg
+
+# D. Le chemin de tous les jours, sans argument (comme ses double-clics).
+#    Elle ouvre d'abord l'appli DANS le .dmg (l'erreur facile)…
+nettoyer
+chflags -R nouchg "$INSTALLEE" 2>/dev/null
+rm -rf "$INSTALLEE"
+monter "$TMPEP/sans-marque.dmg"
+VOL_DMG="$VOL"
+open "$VOL_DMG/Mot du jour.app"
+attendre_ligne "démarrage automatique : pas inscrit" 60 || echec "D : la copie du .dmg n'a pas démarré"
+#    … puis la glisse dans Applications (depuis le .dmg téléchargé, marqué) et l'y rouvre.
+monter "$TMPEP/epreuve.dmg"
+glisser
+demonter
+open "$INSTALLEE"
+attendre_ligne "rangement : ouverte hors d'Applications" 60 || echec "D : la copie du .dmg n'a pas cédé la place"
+attendre_ligne "démarrage automatique : inscrit" 60 || echec "D : la copie d'Applications ne s'est pas inscrite au démarrage"
+sleep 3
+EN_ROUTE=$(pgrep -f "Mot du jour.app/Contents/MacOS/MotDuJour")
+[ "$(printf '%s\n' "$EN_ROUTE" | grep -c .)" -eq 1 ] || echec "D : exemplaires en route : $(printf '%s ' $EN_ROUTE)"
+COMMANDE=$(ps -o command= -p "$EN_ROUTE")
+case "$COMMANDE" in
+  "$INSTALLEE/"*) ;;
+  *) echec "D : l'exemplaire en route n'est pas celui d'Applications ($COMMANDE)" ;;
+esac
+if grep -q "isolement :" "$JOURNAL"; then
+  grep -q "isolement : sortie réussie, l'appli tourne depuis $INSTALLEE" "$JOURNAL" \
+    || echec "D : isolée par macOS, sans sortie réussie vers $INSTALLEE"
+fi
+VOL="$VOL_DMG"
+demonter
+echo "D : la copie du .dmg a cédé la place ; celle d'Applications tourne seule et s'est inscrite au démarrage"
+echo "--- journal de D"; cat "$JOURNAL"
 
 # A. La signature fausse : rien ne doit bouger.
 nettoyer
@@ -204,5 +253,5 @@ kill "$SERVEUR" 2>/dev/null
 rm -rf "$INSTALLEE"
 # Rien de cette épreuve ne doit pouvoir être pris pour une vraie version.
 rm -rf "$EP/neuve" "$EP/serveur/$ZIP" "$EP/serveur/faux"
-rm -f "$EP/cle/cle-maj-privee.pem"
-echo "ÉPREUVE DE LA MISE À JOUR RÉUSSIE (A, B, C)"
+rm -rf "$TMPEP"
+echo "ÉPREUVE DE LA MISE À JOUR RÉUSSIE (D, A, B, C)"

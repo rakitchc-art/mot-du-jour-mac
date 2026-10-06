@@ -92,9 +92,12 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         // Isolée par macOS (voir Isolement.swift) : on se relance depuis le
-        // vrai emplacement, avant de toucher à quoi que ce soit.
+        // vrai emplacement, avant de toucher à quoi que ce soit. Et une copie
+        // ouverte hors d'Applications cède la place à celle d'Applications.
         switch mode {
-        case .normal, .epreuveMaj:
+        case .normal:
+            if Isolement.sortirSiPossible(journal: journal) || Isolement.cederSiPossible(journal: journal) { exit(0) }
+        case .epreuveMaj:
             if Isolement.sortirSiPossible(journal: journal) { exit(0) }
         default:
             break
@@ -111,7 +114,9 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         modele = Modele(depot: Depot(dossier: dossierCarnet))
         switch mode {
-        case .normal, .montrerPanneau: modele.rappelerRangement = !Demarrage.dansApplications
+        // Par le VRAI emplacement : rangée mais restée isolée, « Range-moi »
+        // serait faux (le journal dit pourquoi).
+        case .normal, .montrerPanneau: modele.rappelerRangement = Isolement.estRangee != true
         default: break   // les épreuves tournent hors d'Applications exprès
         }
         let bilan = installerMiseAJour(dossierCarnet: dossierCarnet)
@@ -173,11 +178,21 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     /// Un double-clic sur l'appli alors qu'elle tourne déjà : le panneau s'ouvre.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        ouvrirPanneau()
+        cederOuOuvrir()
         return false
     }
 
-    @objc private func ouvrirDemande(_ n: Notification) { ouvrirPanneau() }
+    @objc private func ouvrirDemande(_ n: Notification) { cederOuOuvrir() }
+
+    /// On la rappelle (double-clic, autre exemplaire) : une copie qui tourne
+    /// hors d'Applications cède la place à celle qu'elle vient d'y ranger.
+    private func cederOuOuvrir() {
+        if case .normal = mode, Isolement.cederSiPossible(journal: journal) {
+            NSApp.terminate(nil)
+            return
+        }
+        ouvrirPanneau()
+    }
 
     // MARK: - La mise à jour
 
@@ -256,6 +271,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Inscrire comme au premier lancement, constater, puis tout défaire.
         var lignes = ["rangée dans Applications : \(Demarrage.dansApplications)", "avant : \(Demarrage.etatLisible)"]
         var ok = true
+        // Déjà active, l'inscription ne prouverait rien (relecture du 06/10).
+        if Demarrage.actif { ok = false; lignes.append("ÉCHEC : déjà active avant l'épreuve — rien ne serait prouvé") }
         do {
             try Demarrage.inscrire(true)
             lignes.append("après inscription : \(Demarrage.etatLisible)")

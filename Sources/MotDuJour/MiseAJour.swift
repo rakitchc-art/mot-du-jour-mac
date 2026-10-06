@@ -353,11 +353,15 @@ final class MiseAJour: NSObject {
       sleep 1
       if [ -f "$ANNONCE" ] && [ -d "$ANCIENNE" ]; then
         rm -rf "$APP.ratee"
-        if mv "$APP" "$APP.ratee" && mv "$ANCIENNE" "$APP"; then
+        if ! mv "$APP" "$APP.ratee"; then
+          note "le retour de l'ancienne a échoué : la neuve n'a pas pu être écartée"
+        elif mv "$ANCIENNE" "$APP"; then
           rm -rf "$APP.ratee"
           note "ancienne remise"
         else
-          note "le retour de l'ancienne a échoué"
+          # Dernier recours : jamais d'Applications sans l'appli.
+          mv "$APP.ratee" "$APP"
+          note "le retour de l'ancienne a échoué : la neuve reste en place"
         fi
       fi
       /usr/bin/open "$APP"

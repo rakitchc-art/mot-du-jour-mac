@@ -79,7 +79,10 @@ sync
 DEMONTE=0
 for essai in 1 2 3 4 5; do
   # Déjà parti (un essai précédent l'a lâché en partie) : c'est fait.
-  if ! hdiutil info | grep -q "^$DISQUE[[:space:]]"; then DEMONTE=1; break; fi
+  # (Lu d'abord : `grep -q` dans un tuyau, sous pipefail, peut faire croire
+  # « déjà parti » quand hdiutil reçoit SIGPIPE.)
+  INFO=$(hdiutil info)
+  if ! grep -q "^$DISQUE[[:space:]]" <<< "$INFO"; then DEMONTE=1; break; fi
   if hdiutil detach "$DISQUE" > /dev/null 2>&1; then DEMONTE=1; break; fi
   echo "démontage, essai $essai : le volume est encore tenu"
   sleep 2
