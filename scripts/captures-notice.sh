@@ -25,9 +25,14 @@ marque_telechargement() {   # comme Safari : l'attribut de quarantaine
   xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$1"
 }
 
-# Le Mac en français, pour ce qui se lance à partir de maintenant.
+# Le Mac en français, pour ce qui se lance à partir de maintenant — et aussi
+# au niveau du système : l'avertissement de Gatekeeper restait en anglais avec
+# le seul réglage de l'utilisateur (2e photo du 06/10).
 defaults write -g AppleLanguages -array fr-FR fr en
 defaults write -g AppleLocale -string fr_FR
+sudo -n defaults write /Library/Preferences/.GlobalPreferences AppleLanguages -array fr-FR fr en 2>/dev/null || true
+sudo -n defaults write /Library/Preferences/.GlobalPreferences AppleLocale -string fr_FR 2>/dev/null || true
+killall cfprefsd 2>/dev/null
 killall CoreServicesUIAgent 2>/dev/null
 killall Finder 2>/dev/null
 killall "System Settings" 2>/dev/null
@@ -52,7 +57,15 @@ OUVERTURE=$!
 sleep 7
 screencapture -x "$N/2-avertissement.png" && echo "photo : 2-avertissement"
 
-# 3. Réglages Système → Confidentialité et sécurité, section Sécurité.
+# 3. « Terminé » (comme elle le fera), puis Réglages Système → Confidentialité
+#    et sécurité : c'est après « Terminé » qu'apparaît « Ouvrir quand même ».
+osascript scripts/cliquer-termine.applescript > "$N/clic.txt" 2>&1 &
+CLIC=$!
+sleep 8
+kill "$CLIC" 2>/dev/null
+echo "clic sur Terminé : $(cat "$N/clic.txt" 2>/dev/null)"
+pgrep -x CoreServicesUIAgent > /dev/null && killall CoreServicesUIAgent 2>/dev/null
+sleep 2
 open "x-apple.systempreferences:com.apple.preference.security?Security" &
 sleep 9
 screencapture -x "$N/3-reglages.png" && echo "photo : 3-reglages"
