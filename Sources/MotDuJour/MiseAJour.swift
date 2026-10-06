@@ -319,6 +319,17 @@ final class MiseAJour: NSObject {
     # $6 le journal
     PID="$1"; APP="$2"; NEUVE="$3"; ANCIENNE="$4"; ANNONCE="$5"; JOURNAL="$6"
     note() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)  pose : $1" >> "$JOURNAL"; }
+    # Trois essais : juste après une sortie, macOS refuse parfois de lancer
+    # (mesuré le 06/10) — et une neuve jamais lancée serait jugée ratée.
+    lancer() {
+      for essai in 1 2 3; do
+        sleep 0.5
+        r=$(/usr/bin/open "$1" 2>&1) && return 0
+        note "macOS n'a pas lancé $1 (essai $essai) — $r"
+        sleep 1.5
+      done
+      return 1
+    }
     n=0
     while kill -0 "$PID" 2>/dev/null; do
       n=$((n + 1))
@@ -328,7 +339,7 @@ final class MiseAJour: NSObject {
     rm -rf "$ANCIENNE"
     if ! mv "$APP" "$ANCIENNE"; then
       note "impossible de mettre l'ancienne de côté, rien n'est touché"
-      /usr/bin/open "$APP"
+      lancer "$APP"
       exit 1
     fi
     if ! mv "$NEUVE" "$APP"; then
@@ -336,7 +347,7 @@ final class MiseAJour: NSObject {
       mv "$ANCIENNE" "$APP"
     fi
     /usr/bin/xattr -dr com.apple.quarantine "$APP" 2>/dev/null
-    /usr/bin/open "$APP"
+    lancer "$APP"
     note "relancée : $APP"
     # La surveillance : la neuve efface l'annonce en démarrant. Deux minutes
     # sans bilan = elle ne démarre pas : l'ancienne revient (et, en démarrant,
@@ -364,7 +375,7 @@ final class MiseAJour: NSObject {
           note "le retour de l'ancienne a échoué : la neuve reste en place"
         fi
       fi
-      /usr/bin/open "$APP"
+      lancer "$APP"
     fi
     """
 }

@@ -117,7 +117,9 @@ enum Isolement {
 
     /// Lance l'appli rangée à `emplacement` dès que CET exemplaire est parti
     /// (sinon elle le trouverait en route et s'effacerait devant lui) — une
-    /// minute d'attente au plus. Un lancement raté s'écrit au journal.
+    /// minute d'attente au plus. Trois essais : juste après la sortie, macOS
+    /// tient parfois encore l'exemplaire parti pour vivant et refuse de lancer
+    /// (mesuré le 06/10, macOS 15). Chaque raté s'écrit au journal.
     static func relancer(_ emplacement: URL, arguments: [String], journal: Journal) -> Bool {
         let relance = Process()
         relance.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -125,8 +127,12 @@ enum Isolement {
             n=0
             while kill -0 "$1" 2>/dev/null && [ "$n" -lt 300 ]; do n=$((n + 1)); sleep 0.2; done
             j="$2"; shift 2
-            if [ "$#" -gt 0 ]; then /usr/bin/open "$0" --args "$@"; else /usr/bin/open "$0"; fi \
-              || echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)  relance : macOS n'a pas lancé $0" >> "$j"
+            for essai in 1 2 3; do
+              sleep 0.5
+              if [ "$#" -gt 0 ]; then r=$(/usr/bin/open "$0" --args "$@" 2>&1); else r=$(/usr/bin/open "$0" 2>&1); fi && exit 0
+              echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)  relance : essai $essai, macOS n'a pas lancé $0 — $r" >> "$j"
+              sleep 1.5
+            done
             """
         relance.arguments = ["-c", script, emplacement.path, String(ProcessInfo.processInfo.processIdentifier),
                              journal.fichier.path] + arguments
