@@ -96,7 +96,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: essais-${{ matrix.mac }}
-          path: sortie/
+          # Les photos, les journaux et les résultats — pas les applis ni les
+          # .dmg (lourds, et un raccourci vers /Applications a fait déborder
+          # l'envoi le 06/10).
+          path: |
+            sortie/captures/
+            sortie/notice/
+            sortie/epreuve-maj/
+            sortie/epreuve-demarrage/
+            sortie/epreuve-clavier/
+            !sortie/**/*.app/
+            !sortie/**/*.dmg
+            !sortie/**/*.zip
+            !sortie/epreuve-maj/dmg-src/
           if-no-files-found: warn
 
   publier:

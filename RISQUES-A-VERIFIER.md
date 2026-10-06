@@ -15,6 +15,13 @@ Format d'une entrée :
 
 ---
 
+## 2026-10-06 — L'isolement de macOS chez elle
+
+**Origine :** épreuve de la mise à jour du 06/10 (passage 37469932840) : l'appli glissée par le Finder et marquée « autorisée » tournait isolée (AppTranslocation).
+**Risque :** isolée, l'appli ne se met jamais à jour et ne s'inscrit pas au démarrage : l'icône disparaît au premier redémarrage. La parade (Isolement.swift) est éprouvée sur les Mac de GitHub, où « Ouvrir quand même » est imité par la marque 0x40 et le glisser par un `duplicate` du Finder en AppleScript — pas par sa main ni par Réglages Système. La protection « Gestion des apps » de macOS 13+ pourrait aussi refuser que l'appli retire la marque de son propre dossier chez elle.
+**À vérifier ou trancher :** après son installation, son journal (`~/Library/Logs/Mot du jour/journal.txt`) : « sortie réussie » ou aucune ligne « isolement » = bon ; « la marque est restée » ou « toujours isolée » = la parade ne suffit pas chez elle.
+**Statut :** EN SUSPENS.
+
 ## 2026-10-06 — Ce que les Mac de GitHub ne peuvent pas montrer
 
 **Origine :** tour de code du 06/10, partie « non prouvé ».

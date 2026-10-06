@@ -75,13 +75,16 @@ preparer_dmg() {   # un .dmg comme celui qu'elle télécharge, avec la copie d'�
   ln -s /Applications "$EP/dmg-src/Applications"
   hdiutil create -volname "Mot du jour epreuve" -srcfolder "$EP/dmg-src" -ov -format UDZO "$EP/epreuve.dmg" > /dev/null \
     || echec "fabrication du .dmg d'épreuve"
+  # Le dossier source a un raccourci vers /Applications : il ne doit pas rester
+  # dans sortie/ (l'envoi des fichiers d'essai le suivrait dans tout le Mac).
+  rm -rf "$EP/dmg-src"
   xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$EP/epreuve.dmg"
 }
 installer() {   # comme ELLE : le .dmg téléchargé ouvert, l'appli glissée par le FINDER
-  # (mesuré le 06/10 : posée par `cp` avec la marque de téléchargement, macOS
-  # l'isole — elle tourne depuis …/AppTranslocation/… et ne peut pas se mettre
-  # à jour. La question est de savoir ce qu'il fait d'une appli glissée par le
-  # Finder, comme elle le fera.)
+  # (mesuré le 06/10 : posée par `cp` OU glissée par le Finder, avec la marque
+  # de téléchargement, macOS l'isole — elle tourne depuis …/AppTranslocation/…
+  # — et l'appli doit alors se relancer d'elle-même depuis /Applications :
+  # voir Sources/MotDuJour/Isolement.swift.)
   chflags -R nouchg "$INSTALLEE" 2>/dev/null
   rm -rf "$INSTALLEE"
   hdiutil attach -noautoopen "$EP/epreuve.dmg" > "$EP/attache.txt" || echec "montage du .dmg d'épreuve"
@@ -159,8 +162,15 @@ installer
 lancer "$EP/b" "vraie.json"
 if ! attendre_ligne "mise à jour : $NEUVE_V posée et relancée" 90; then
   grep -q "ne tourne pas depuis Applications" "$JOURNAL" 2>/dev/null \
-    && echec "B : macOS a ISOLÉ l'appli glissée par le Finder (AppTranslocation) — chez elle, elle ne se mettrait jamais à jour"
+    && echec "B : l'appli est restée ISOLÉE par macOS (AppTranslocation) — chez elle, elle ne se mettrait jamais à jour"
   echec "B : pas de bilan de la neuve au journal"
+fi
+# Le chemin pris : isolée puis sortie, ou jamais isolée. Isolée sans sortie = raté.
+ISOLEMENT=$(grep "isolement :" "$JOURNAL")
+echo "isolement : ${ISOLEMENT:-jamais isolée par macOS}"
+if [ -n "$ISOLEMENT" ]; then
+  grep -q "isolement : sortie réussie, l'appli tourne depuis $INSTALLEE" "$JOURNAL" \
+    || echec "B : isolée par macOS, sans sortie réussie vers $INSTALLEE"
 fi
 [ "$(version_installee)" = "$NEUVE_V" ] || echec "B : l'appli installée n'est pas la neuve"
 [ ! -d "$SUPPORT/ancienne.app" ] || echec "B : la sauvegarde de l'ancienne traîne"
@@ -174,6 +184,10 @@ echo "--- journal de B"; cat "$JOURNAL"
 #    toujours, et ne plus y revenir.
 nettoyer
 installer
+# Verrouillée, l'appli ne pourrait pas non plus sortir de l'isolement (sa
+# marque ne s'enlève pas) : C éprouve la pose ratée, pas l'installation, donc
+# sans marque de téléchargement.
+xattr -dr com.apple.quarantine "$INSTALLEE"
 chflags -R uchg "$INSTALLEE"
 lancer "$EP/c" "vraie.json"
 attendre_ligne "$NEUVE_V n'a pas pris" 90 || echec "C : l'ancienne n'a pas fait le bilan de la pose ratée"

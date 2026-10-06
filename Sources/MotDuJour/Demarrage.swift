@@ -18,8 +18,9 @@ enum Demarrage {
     /// Téléchargements, une copie « isolée » par macOS dont le chemin change à
     /// chaque lancement), rien de durable ne peut s'y accrocher : ni le
     /// démarrage automatique, ni la mise à jour.
-    static var dansApplications: Bool {
-        let chemin = Bundle.main.bundlePath
+    static var dansApplications: Bool { estDansApplications(Bundle.main.bundlePath) }
+
+    static func estDansApplications(_ chemin: String) -> Bool {
         let maison = FileManager.default.homeDirectoryForCurrentUser.path
         return chemin.hasPrefix("/Applications/") || chemin.hasPrefix(maison + "/Applications/")
     }

@@ -8,6 +8,7 @@ import AppKit
 //  fabrication et aux épreuves, sur les Mac de GitHub :
 //    --version                                 écrit la version et s'arrête
 //    --au-demarrage                            lancée par l'agent de macOS 12 (pas de panneau)
+//    --sortie-isolement                        ajouté par l'appli à sa propre relance (Isolement.swift)
 //    --apercu <dossier>                        dessine les planches (les looks) en PNG
 //    --icone <dossier>                         dessine les icônes de l'appli (pour le .icns)
 //    --fond-dmg <dossier>                      dessine le fond de la fenêtre du .dmg

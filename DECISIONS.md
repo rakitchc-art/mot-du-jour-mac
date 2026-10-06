@@ -15,6 +15,13 @@ Format d'une entrée :
 
 ---
 
+## 2026-10-06 — L'appli isolée par macOS se relance depuis Applications
+
+**Décision :** si macOS lance l'appli depuis une copie isolée (`…/AppTranslocation/…`) alors que son vrai emplacement est dans Applications, elle retire la marque « téléchargée » de ce vrai emplacement, se relance depuis là et quitte (Sources/MotDuJour/Isolement.swift). Le vrai emplacement se demande à Security par `SecTranslocateCreateOriginalPathForURL` (non publiée, chargée par `dlsym` : absente un jour = rien ne se fait, le rappel « Range-moi » reste). Une seule tentative : la relance porte `--sortie-isolement` et n'insiste pas.
+**Raison :** mesuré le 06/10 sur les Mac de GitHub (passage 37469932840) : l'appli glissée par le Finder depuis un .dmg marqué par Safari, puis marquée « autorisée » (00c3), tournait quand même isolée — sans mise à jour possible ni démarrage automatique. Que chez elle « Ouvrir quand même » fasse pareil ou non, la parade couvre les deux cas.
+**Alternatives écartées :** compter sur le Finder et « Ouvrir quand même » (non prouvé, et mesuré faux dans l'épreuve) ; une notice qui lui fait taper `xattr` dans le Terminal (pas pour quelqu'un de non technique) ; un compte Apple Developer et la notarisation (99 €/an, écarté au départ).
+**Ce qui invaliderait ce choix :** un journal de son Mac qui dit « isolement : la marque de téléchargement est restée » ou « toujours isolée après la relance » ; ou la fonction de Security retirée par Apple.
+
 ## 2026-10-06 — Le tour de code : ce qui a changé de règle
 
 **Décision :** après le tour de code indépendant (22 points, aucun bloquant dans le code qui avait tourné) :
@@ -27,7 +34,7 @@ Format d'une entrée :
 - **Carnet** : jamais réécrit s'il est d'une version plus récente, ou illisible et impossible à mettre de côté.
 - **Hors d'Applications** : un rappel « Range-moi dans Applications pour que je reste » à chaque ouverture.
 **Raison :** chacun de ces points pouvait laisser son amie avec une appli qui ne revient pas, ne se met plus à jour, ou perd une partie — sans qu'elle puisse comprendre pourquoi.
-**Alternatives écartées :** livrer d'abord et corriger ensuite (personne ne peut réparer chez elle) ; une fenêtre « Déplacer dans Applications » qui se déplace toute seule (copie isolée de macOS : chemin d'origine inconnu sans API privée).
+**Alternatives écartées :** livrer d'abord et corriger ensuite (personne ne peut réparer chez elle) ; une fenêtre « Déplacer dans Applications » qui se déplace toute seule (copie isolée de macOS : chemin d'origine inconnu sans API privée — l'API privée a finalement servi, voir l'entrée « L'appli isolée par macOS »).
 **Ce qui invaliderait ce choix :** un retour réel de son Mac qui contredit l'une de ces suppositions.
 
 ## 2026-10-06 — Écart assumé avec TokenBar : « rattrapé » se juge au fuseau du Mac

@@ -91,6 +91,15 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
 
+        // Isolée par macOS (voir Isolement.swift) : on se relance depuis le
+        // vrai emplacement, avant de toucher à quoi que ce soit.
+        switch mode {
+        case .normal, .epreuveMaj:
+            if Isolement.sortirSiPossible(journal: journal) { exit(0) }
+        default:
+            break
+        }
+
         let dossierCarnet: URL
         switch mode {
         case .autotest(let d), .epreuveClavier(let d), .montrerPanneau(let d):
