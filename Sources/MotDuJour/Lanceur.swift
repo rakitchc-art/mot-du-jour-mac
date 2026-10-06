@@ -13,6 +13,7 @@ import AppKit
 //    --epreuve-maj <dossier> <adresse> <clé>   l'épreuve de la mise à jour
 //    --apres-maj <dossier>                     sa relance : écrit le bilan
 //    --controle-publication <dossier>          l'appli juge la publication en ligne
+//    --epreuve-demarrage <dossier>             « Ouvrir au démarrage » : activer, constater, défaire
 // ===========================================================================
 
 @main
@@ -34,6 +35,7 @@ struct Lanceur {
         else if let d = dossier(apres: "--autotest") { mode = .autotest(d) }
         else if let d = dossier(apres: "--apres-maj") { mode = .apresMaj(d) }
         else if let d = dossier(apres: "--controle-publication") { mode = .controlePublication(d) }
+        else if let d = dossier(apres: "--epreuve-demarrage") { mode = .epreuveDemarrage(d) }
         else if let i = arguments.firstIndex(of: "--epreuve-maj"), i + 3 < arguments.count,
                 let adresse = URL(string: arguments[i + 2]) {
             mode = .epreuveMaj(URL(fileURLWithPath: arguments[i + 1], isDirectory: true), adresse, arguments[i + 3])

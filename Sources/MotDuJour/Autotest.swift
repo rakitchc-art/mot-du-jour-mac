@@ -43,7 +43,9 @@ final class Autotest {
         let jour = modele.aujourdhui
         let solution = modele.jeu.solution(jour) ?? ""
         let faux = Dictionnaire.livre.solutions.first { $0 != solution } ?? "salut"
-        noter("jour \(jour) ; essai faux « \(faux) »")
+        let demain = jourDeNumero((numeroDeJour(jour) ?? 0) + 1)
+        let solutionDemain = modele.jeu.solution(demain) ?? ""
+        noter("jour \(jour) ; essai faux « \(faux) » ; lendemain simulé \(demain)")
 
         file = [
             .pause(1.5),
@@ -124,6 +126,74 @@ final class Autotest {
                    let c = try? JSONDecoder().decode(Carnet.self, from: data) {
                     self.verifier(c.grilles[jour]?.essais.count == 2, "le carnet écrit garde les 2 essais")
                     self.verifier(c.premierJour == jour, "le premier jour est celui de l'installation")
+                } else {
+                    self.verifier(false, "le carnet se relit depuis le disque")
+                }
+            },
+            // Minuit, sans attendre minuit : l'horloge du modèle avance d'un jour,
+            // puis le tic de la minuterie (le même que toutes les 20 s).
+            .faire("minuit passe") {
+                self.modele.horloge = { demain }
+                self.delegue.tic()
+                self.verifier(self.modele.aujourdhui == demain, "le jour courant devient le lendemain")
+                self.verifier(self.modele.pastille, "un nouveau mot attend")
+                self.verifier(self.delegue.pastilleDansLaBarre == true, "l'icône de la barre reprend sa pastille")
+            },
+            .faire("rouvrir le panneau") {
+                self.delegue.ouvrirPanneau()
+            },
+            .pause(1.0),
+            .faire("le panneau s'ouvre sur le nouveau jour") {
+                let e = self.modele.etat
+                self.verifier(self.modele.jourAffiche == demain, "le jour affiché est le nouveau jour")
+                self.verifier(e.titre == "Mot du jour", "titre « Mot du jour »")
+                self.verifier(e.precedentPossible && !e.suivantPossible, "la flèche ‹ mène à hier, pas de flèche ›")
+                self.photographier("vrai-5-lendemain.png")
+                self.modele.precedent()
+            },
+            .pause(0.6),
+            .faire("‹ : hier se relit") {
+                let e = self.modele.etat
+                self.verifier(e.titre == "Hier", "titre « Hier »")
+                self.verifier(e.message == "Trouvé en 2 !", "la grille d'hier, trouvée en 2")
+                self.verifier(e.ligneEnCours == nil, "une grille finie ne se rejoue pas")
+                self.verifier(e.suivantPossible, "la flèche › ramène au jour")
+                self.photographier("vrai-6-hier.png")
+                self.modele.suivant()
+                self.taper("abcde")
+            },
+            .pause(0.6),
+            .faire("clic sur la 1re case, puis une lettre") {
+                self.verifier(self.modele.jourAffiche == demain, "› est revenu au jour")
+                self.modele.clicCase(0)
+                self.taper("x")
+            },
+            .pause(0.6),
+            .faire("la lettre tapée remplace celle de la case") {
+                self.verifier(self.modele.saisie.mot == "xbcde", "« abcde » devient « xbcde »")
+                for _ in 0..<5 { self.droite() }
+                for _ in 0..<5 { self.retour() }
+            },
+            .pause(0.6),
+            .faire("→ puis cinq retours arrière vident la ligne") {
+                self.verifier(self.modele.saisie.vide, "la ligne est vide")
+                self.taper(solutionDemain)
+                self.entree()
+            },
+            .pause(0.8),
+            .faire("trouvé du premier coup : deux jours de série") {
+                let s = self.modele.etat.stats
+                self.verifier(self.modele.etat.message == "Trouvé en 1 !", "« Trouvé en 1 ! »")
+                self.verifier(s.joues == 2 && s.serie == 2 && s.meilleureSerie == 2, "2 joués, série de 2, record 2")
+                self.verifier(!self.modele.pastille, "la pastille s'éteint")
+                self.photographier("vrai-7-serie.png")
+                self.echap()
+            },
+            .pause(0.6),
+            .faire("les deux jours sont sur le disque") {
+                if let d = self.modele.depot, let data = try? Data(contentsOf: d.fichier),
+                   let c = try? JSONDecoder().decode(Carnet.self, from: data) {
+                    self.verifier(c.grilles.count == 2 && c.grilles[demain]?.trouve == true, "deux grilles, la seconde trouvée")
                 } else {
                     self.verifier(false, "le carnet se relit depuis le disque")
                 }
@@ -212,6 +282,7 @@ final class Autotest {
     private func entree() { poster("\r", code: 36) }
     private func retour() { poster("\u{7f}", code: 51) }
     private func echap() { poster("\u{1b}", code: 53) }
+    private func droite() { poster("\u{F703}", code: 124) }
 
     /// Une vraie touche, dans la file d'événements de l'appli : elle passe par
     /// le moniteur du clavier comme une frappe de la joueuse.

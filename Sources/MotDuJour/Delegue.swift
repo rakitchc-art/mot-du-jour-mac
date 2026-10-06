@@ -19,6 +19,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case apresMaj(URL)
         /// Le contrôle d'une publication par l'appli elle-même (script de publication).
         case controlePublication(URL)
+        /// L'épreuve d'« Ouvrir au démarrage du Mac » : activer, constater, désactiver.
+        case epreuveDemarrage(URL)
     }
 
     let mode: Mode
@@ -83,6 +85,24 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 }
             }
             return
+        case .epreuveDemarrage(let dossier):
+            // Activer comme au premier lancement, constater, puis tout défaire.
+            var lignes = ["avant : \(Demarrage.etatLisible)"]
+            var ok = true
+            do {
+                try Demarrage.activer(true)
+                lignes.append("après activation : \(Demarrage.etatLisible)")
+                if !Demarrage.actif { ok = false; lignes.append("ÉCHEC : pas actif après activation") }
+                try Demarrage.activer(false)
+                lignes.append("après désactivation : \(Demarrage.etatLisible)")
+                if Demarrage.actif { ok = false; lignes.append("ÉCHEC : toujours actif après désactivation") }
+            } catch {
+                ok = false
+                lignes.append("ÉCHEC : \(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]")
+            }
+            UserDefaults.standard.removeObject(forKey: "demarrageDejaDecide")
+            Self.ecrireResultat((ok ? "REUSSI" : "ECHEC") + "\n" + lignes.joined(separator: "\n"), dans: dossier)
+            exit(ok ? 0 : 1)
         case .normal, .autotest, .epreuveMaj:
             break
         }
@@ -359,10 +379,14 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: - Minuit, le réveil
 
-    private func tic() {
+    /// La minuterie (toutes les 20 s) et la sortie de veille : minuit est-il passé ?
+    func tic() {
         modele.verifierJour()
         majIcone()
     }
+
+    /// La pastille telle qu'elle est posée dans la barre (pour l'autotest).
+    var pastilleDansLaBarre: Bool? { pastilleAffichee }
 
     @objc private func reveil(_ n: Notification) { tic() }
     @objc private func minute(_ t: Timer) { tic() }

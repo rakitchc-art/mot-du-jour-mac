@@ -28,6 +28,7 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 
 echec() {
   echo "ÉPREUVE RATÉE : $1"
+  rm -f "$EP/cle/cle-maj-privee.pem"   # jetable, mais jamais dans une pièce jointe publique
   for f in "$EP/a/resultat-maj.txt" "$EP/a/journal.txt" "$EP/a.sortie.txt" "$EP/b/resultat-maj.txt" \
            "$EP/b/journal.txt" "$EP/b.sortie.txt" "$EP/serveur.log"; do
     [ -f "$f" ] && { echo "--- $f"; cat "$f"; }
@@ -123,4 +124,5 @@ cat "$EP/b/journal.txt"
 
 kill "$SERVEUR" 2>/dev/null
 rm -rf "$INSTALLEE"
+rm -f "$EP/cle/cle-maj-privee.pem"   # jetable, mais jamais dans une pièce jointe publique
 echo "ÉPREUVE DE LA MISE À JOUR RÉUSSIE"

@@ -1,7 +1,9 @@
-# Fabrique l'appli sur un Mac de GitHub, la met à l'épreuve (les tests du jeu,
-# une partie jouée dans le vrai panneau, la mise à jour posée en vrai dans
-# /Applications), et garde le résultat en pièce jointe de chaque passage.
-# Sur une étiquette vX.Y.Z (posée par scripts/Publier.ps1) : publie la version.
+# L'appli est fabriquée UNE fois (sur macOS 15, puce Apple), puis la MÊME est
+# essayée sur quatre Mac : macOS 14, 15 et 26 à puce Apple, et un Mac Intel.
+# Sur chacun : les planches, une partie jouée dans le vrai panneau (minuit
+# compris), la mise à jour posée en vrai dans /Applications, le démarrage
+# automatique, et les photos de la notice. Sur une étiquette vX.Y.Z (posée par
+# scripts/Publier.ps1), elle n'est publiée que si les quatre sont verts.
 name: Fabriquer
 
 on:
@@ -18,9 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  mac:
+  fabriquer:
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -37,11 +39,45 @@ jobs:
       - name: Fabriquer l'appli
         run: bash scripts/construire-app.sh
 
+      - name: Garder l'appli pour les essais
+        uses: actions/upload-artifact@v4
+        with:
+          name: appli
+          path: |
+            sortie/Mot-du-jour-*.zip
+            sortie/Mot-du-jour-*.dmg
+          if-no-files-found: error
+
+  essayer:
+    needs: fabriquer
+    strategy:
+      fail-fast: false
+      matrix:
+        mac: [macos-14, macos-15, macos-26, macos-15-intel]
+    runs-on: ${{ matrix.mac }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: appli
+          path: sortie
+
+      - name: Déballer l'appli
+        run: bash scripts/deballer.sh
+
       - name: Planches et partie scriptée
+        timeout-minutes: 6
         run: bash scripts/autotest.sh
 
       - name: Épreuve de la mise à jour
+        timeout-minutes: 6
         run: bash scripts/epreuve-maj.sh
+
+      - name: Épreuve du démarrage automatique
+        timeout-minutes: 3
+        run: bash scripts/epreuve-demarrage.sh
 
       - name: Photos de la notice (en dernier, change la langue du Mac)
         continue-on-error: true
@@ -52,12 +88,27 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mot-du-jour-${{ github.run_number }}
+          name: essais-${{ matrix.mac }}
           path: sortie/
           if-no-files-found: warn
 
+  publier:
+    needs: essayer
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: appli
+          path: sortie
+
+      - name: Déballer l'appli
+        run: bash scripts/deballer.sh
+
       - name: Publier la version
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           MAJ_CLE_PRIVEE: ${{ secrets.MAJ_CLE_PRIVEE }}

@@ -21,6 +21,20 @@ enum Demarrage {
         return FileManager.default.fileExists(atPath: agentDeLancement.path)
     }
 
+    /// L'état tel que macOS le rapporte, en clair (épreuves et journal).
+    static var etatLisible: String {
+        if #available(macOS 13.0, *) {
+            switch SMAppService.mainApp.status {
+            case .notRegistered: return "non inscrite"
+            case .enabled: return "active"
+            case .requiresApproval: return "en attente d'autorisation (Réglages Système > Général > Ouverture)"
+            case .notFound: return "introuvable"
+            @unknown default: return "état inconnu (\(SMAppService.mainApp.status.rawValue))"
+            }
+        }
+        return FileManager.default.fileExists(atPath: agentDeLancement.path) ? "agent de lancement présent" : "pas d'agent de lancement"
+    }
+
     static func activer(_ oui: Bool) throws {
         UserDefaults.standard.set(true, forKey: cleDecide)
         if #available(macOS 13.0, *) {

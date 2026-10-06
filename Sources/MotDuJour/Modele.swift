@@ -20,7 +20,9 @@ final class Modele: ObservableObject {
     let premierLancement: Bool
     private var avertissement: String?
     private var effacement: DispatchWorkItem?
-    private let horloge: () -> String
+    /// Le jour courant. Remplaçable par l'autotest seulement, pour faire passer
+    /// minuit sans attendre minuit.
+    var horloge: () -> String
 
     init(depot: Depot?, dico: Dictionnaire = .livre, horloge: @escaping () -> String = { jourLocal() }) {
         self.depot = depot
