@@ -59,8 +59,10 @@ ln -s /Applications "$DMG/Applications"
 "$BIN" --fond-dmg "$SORTIE/fond"
 tiffutil -cathidpicheck "$SORTIE/fond/fond.png" "$SORTIE/fond/fond@2x.png" -out "$DMG/.fond/fond.tiff"
 hdiutil create -volname "Mot du jour" -srcfolder "$DMG" -ov -format UDRW "$SORTIE/brouillon.dmg"
-MONTAGE=$(hdiutil attach -readwrite -noverify -noautoopen "$SORTIE/brouillon.dmg" | grep -o '/Volumes/.*$' | head -1)
-echo "monté : $MONTAGE"
+ATTACHE=$(hdiutil attach -readwrite -noverify -noautoopen "$SORTIE/brouillon.dmg")
+MONTAGE=$(echo "$ATTACHE" | grep -o '/Volumes/.*$' | head -1)
+DISQUE=$(echo "$ATTACHE" | grep -o '^/dev/disk[0-9]*' | head -1)
+echo "monté : $MONTAGE ($DISQUE)"
 # La mise en page passe par le Finder : 60 s au plus, et sans elle le .dmg
 # reste bon (fenêtre simple) — on le dit, on ne s'arrête pas.
 osascript scripts/mettre-en-page-dmg.applescript "Mot du jour" > "$SORTIE/mise-en-page-dmg.txt" 2>&1 &
@@ -70,7 +72,21 @@ if kill -0 "$PAGE" 2>/dev/null; then kill "$PAGE"; echo "mise en page du .dmg : 
 echo "mise en page du .dmg : $(cat "$SORTIE/mise-en-page-dmg.txt")"
 [ -f "$MONTAGE/.DS_Store" ] && echo "mise en page enregistrée (.DS_Store présent)" || echo "pas de .DS_Store : fenêtre simple"
 sync
-hdiutil detach "$MONTAGE" || hdiutil detach -force "$MONTAGE"
+# Le démontage, par le DISQUE et en plusieurs essais : juste après la mise en
+# page, le Finder tient parfois encore le volume (« Resource busy », passage
+# du 06/10) — et un premier essai à moitié réussi fait disparaître le chemin
+# /Volumes/… que le second visait.
+DEMONTE=0
+for essai in 1 2 3 4 5; do
+  # Déjà parti (un essai précédent l'a lâché en partie) : c'est fait.
+  if ! hdiutil info | grep -q "^$DISQUE[[:space:]]"; then DEMONTE=1; break; fi
+  if hdiutil detach "$DISQUE" > /dev/null 2>&1; then DEMONTE=1; break; fi
+  echo "démontage, essai $essai : le volume est encore tenu"
+  sleep 2
+done
+if [ "$DEMONTE" -eq 0 ]; then
+  hdiutil detach -force "$DISQUE" || { echo "le .dmg ne se démonte pas"; exit 1; }
+fi
 hdiutil convert "$SORTIE/brouillon.dmg" -format UDZO -ov -o "$SORTIE/Mot-du-jour.dmg"
 rm -rf "$DMG" "$SORTIE/brouillon.dmg"
 
