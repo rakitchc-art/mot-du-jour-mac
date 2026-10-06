@@ -83,9 +83,13 @@ preparer_dmg() {   # un .dmg comme celui qu'elle télécharge, avec la copie d'�
   ln -s /Applications "$TMPEP/dmg-src/Applications"
   hdiutil create -volname "Mot du jour epreuve" -srcfolder "$TMPEP/dmg-src" -ov -format UDZO "$TMPEP/epreuve.dmg" > /dev/null \
     || echec "fabrication du .dmg d'épreuve"
-  # Le même sans la marque de téléchargement : pour D, la copie ouverte depuis
-  # le .dmg (chez elle, elle l'aura autorisée ; ici, rien ne peut le faire).
-  cp "$TMPEP/epreuve.dmg" "$TMPEP/sans-marque.dmg"
+  # Un second .dmg sans la marque de téléchargement : pour D, la copie ouverte
+  # depuis le .dmg (chez elle, elle l'aura autorisée ; ici, rien ne peut le
+  # faire). Fabriqué à part, pas copié : une copie est le MÊME disque pour
+  # hdiutil, qui rend alors le volume déjà monté (passage du 06/10 : le Finder
+  # glissait depuis le volume sans marque).
+  hdiutil create -volname "Mot du jour epreuve sans marque" -srcfolder "$TMPEP/dmg-src" -ov -format UDZO "$TMPEP/sans-marque.dmg" > /dev/null \
+    || echec "fabrication du .dmg sans marque"
   xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$TMPEP/epreuve.dmg"
 }
 installer() {   # comme ELLE : le .dmg téléchargé ouvert, l'appli glissée par le FINDER
@@ -172,6 +176,7 @@ open "$VOL_DMG/Mot du jour.app"
 attendre_ligne "démarrage automatique : pas inscrit" 60 || echec "D : la copie du .dmg n'a pas démarré"
 #    … puis la glisse dans Applications (depuis le .dmg téléchargé, marqué) et l'y rouvre.
 monter "$TMPEP/epreuve.dmg"
+[ "$VOL" != "$VOL_DMG" ] || echec "D : le .dmg marqué a rendu le volume déjà monté ($VOL)"
 glisser
 demonter
 open "$INSTALLEE"
