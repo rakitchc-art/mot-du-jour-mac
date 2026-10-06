@@ -78,11 +78,14 @@ FIN
 }
 publication "$EP/serveur/vraie.json" ""
 publication "$EP/serveur/fausse.json" "faux/"
-python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$EP/serveur" > "$EP/serveur.log" 2>&1 &
+node scripts/serveur-epreuve.js "$EP/serveur" "$PORT" > "$EP/serveur.log" 2>&1 &
 SERVEUR=$!
-sleep 1.5
-# Le serveur répond-il, vu d'ici ? (1er passage, 06/10 : l'appli a attendu 20 s
-# sans qu'aucune requête n'arrive — on sépare « serveur absent » et « appli retenue ».)
+# Attendre qu'il RÉPONDE, pas un délai deviné. (2e passage, 06/10 : le serveur
+# de Python ne répondait pas même au terminal — voir serveur-epreuve.js.)
+for i in $(seq 1 30); do
+  curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/vraie.json" && break
+  sleep 0.5
+done
 if curl -sS -m 5 -o /dev/null -w "serveur local : HTTP %{http_code}\n" "http://127.0.0.1:$PORT/vraie.json"; then :; else
   echo "serveur local : ne répond pas au terminal"; lsof -nP -iTCP:"$PORT" || true; echec "le serveur d'épreuve ne répond pas"
 fi
