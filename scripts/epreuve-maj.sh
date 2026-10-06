@@ -47,6 +47,7 @@ arreter_appli() { pkill -f "Mot du jour.app/Contents/MacOS/MotDuJour" 2>/dev/nul
 nettoyer() { arreter_appli; rm -rf "$SUPPORT" "$TRAVAIL" "$LOGS"; }
 echec() {
   echo "ÉPREUVE RATÉE : $1"
+  echo "--- exemplaires en route :"; pgrep -fl "MotDuJour" || echo "(aucun)"
   for f in "$EP/a/resultat.txt" "$JOURNAL" "$EP/serveur.log"; do
     [ -f "$f" ] && { echo "--- $f"; cat "$f"; }
   done
@@ -109,16 +110,19 @@ monter() {   # monter <.dmg> : ouvert comme d'un double-clic ; son volume dans V
   [ -d "$VOL/Mot du jour.app" ] || echec "le .dmg monté n'a pas l'appli ($VOL)"
 }
 demonter() { hdiutil detach "$VOL" > /dev/null 2>&1 || hdiutil detach "$VOL" -force > /dev/null 2>&1; }
-glisser() {   # depuis le .dmg monté (VOL), par le FINDER, puis « Ouvrir quand même »
+glisser() { copier_par_le_finder; autoriser; }
+copier_par_le_finder() {   # depuis le .dmg monté (VOL), dans /Applications
   osascript -e "tell application \"Finder\" to duplicate (POSIX file \"$VOL/Mot du jour.app\" as alias) to (POSIX file \"/Applications\" as alias) with replacing" \
     > /dev/null || echec "copie par le Finder"
   [ -d "$INSTALLEE" ] || echec "le Finder n'a rien posé dans /Applications"
+}
+autoriser() {   # la marque de téléchargement (exigée), puis « Ouvrir quand même »
   Q=$(xattr -p com.apple.quarantine "$INSTALLEE" 2>/dev/null)
-  echo "marque posée par le Finder : ${Q:-aucune}"
+  echo "marque de téléchargement : ${Q:-aucune}"
   # Sans marque, l'épreuve n'imiterait plus son installation (ni l'isolement).
-  [ -n "$Q" ] || echec "le Finder n'a posé aucune marque de téléchargement : l'épreuve n'imite plus son installation"
+  [ -n "$Q" ] || echec "aucune marque de téléchargement sur l'appli installée : l'épreuve n'imite plus son installation"
   # « Ouvrir quand même » : le drapeau 0x40 (ouverte avec son accord) s'ajoute
-  # à ceux que le Finder a posés.
+  # à ceux de la marque.
   DRAPEAUX=$(printf "%04x" $(( 0x${Q%%;*} | 0x40 )))
   xattr -w com.apple.quarantine "$DRAPEAUX;${Q#*;}" "$INSTALLEE"
   echo "marque après « Ouvrir quand même » : $(xattr -p com.apple.quarantine "$INSTALLEE")"
@@ -174,12 +178,18 @@ monter "$TMPEP/sans-marque.dmg"
 VOL_DMG="$VOL"
 open "$VOL_DMG/Mot du jour.app"
 attendre_ligne "démarrage automatique : pas inscrit" 60 || echec "D : la copie du .dmg n'a pas démarré"
-#    … puis la glisse dans Applications (depuis le .dmg téléchargé, marqué) et l'y rouvre.
-monter "$TMPEP/epreuve.dmg"
-[ "$VOL" != "$VOL_DMG" ] || echec "D : le .dmg marqué a rendu le volume déjà monté ($VOL)"
-glisser
-demonter
-open "$INSTALLEE"
+#    … puis la glisse dans Applications (par le Finder, depuis ce même .dmg) et
+#    l'y rouvre. La marque de téléchargement est posée à la main, telle que le
+#    Finder la pose depuis un .dmg téléchargé (A, B et C passent, eux, par le
+#    vrai .dmg marqué) : deux .dmg montés à la fois, avec deux copies de
+#    l'appli, rendaient D capricieux sur macOS 26 (06/10 : une fois rien reçu
+#    en 60 s, une fois aucune marque posée par le Finder).
+copier_par_le_finder
+xattr -w com.apple.quarantine "0083;$(printf %x "$(date +%s)");Safari;" "$INSTALLEE"
+autoriser
+# Ce que macOS répond au double-clic : le 06/10 (passage 37520271980, macOS 26),
+# la copie du .dmg n'a rien reçu en 60 s, sans qu'on sache pourquoi.
+if R=$(open "$INSTALLEE" 2>&1); then echo "D : open a répondu 0 ${R}"; else echo "D : open a ÉCHOUÉ — $R"; fi
 attendre_ligne "rangement : ouverte hors d'Applications" 60 || echec "D : la copie du .dmg n'a pas cédé la place"
 attendre_ligne "démarrage automatique : inscrit" 60 || echec "D : la copie d'Applications ne s'est pas inscrite au démarrage"
 sleep 3

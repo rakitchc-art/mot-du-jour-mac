@@ -15,6 +15,14 @@ Format d'une entrée :
 
 ---
 
+## 2026-10-06 — La copie du .dmg ne cède pas toujours la place
+
+**Origine :** épreuve D, passage 37520271980 (étiquette v1.0.1), macOS 26 : après `open "/Applications/Mot du jour.app"`, la copie ouverte depuis le .dmg n'a rien écrit en 60 s (ni « rangement », ni aucune ligne de la copie d'Applications). Vert sur les ~12 autres passages de D (4 Mac × 3), où elle cède en moins d'une seconde.
+**Risque :** quelqu'un qui ouvre d'abord l'appli depuis le .dmg, puis la range et la rouvre depuis Applications : parfois rien ne se passe — un double-clic de plus à faire. Ne touche pas Kelly (déjà installée). Présent dans la 1.0.0 comme dans la 1.0.1.
+**À vérifier ou trancher :** traces ajoutées (la réponse de `open` dans l'épreuve, les exemplaires en route, et au journal de l'appli : « un exemplaire tourne déjà… lui passe la main » / « demande d'un autre exemplaire reçue ») : au prochain rouge, savoir si macOS a lancé la copie d'Applications, si la demande est partie, si elle est arrivée.
+**Rejoué le même soir :** rouge encore, mais autrement — le Finder n'a posé AUCUNE marque en glissant depuis le second .dmg monté. Point commun des deux rouges : D montait deux .dmg à la fois (deux copies de l'appli au même identifiant). D simplifié (un seul .dmg, marque posée à la main telle que le Finder la pose ; A, B, C gardent le vrai chemin marqué). Si le rouge « rien reçu » revient malgré tout, les traces diront où ça casse.
+**Statut :** EN SUSPENS. Le Mac rouge a été rejoué pour publier la 1.0.1 (la fusée, qui ne touche pas à ce chemin) : un vert rejoué ne tranche RIEN ici — ce rouge rare se lit, il ne se rejoue pas jusqu'au vert.
+
 ## 2026-10-06 — L'isolement de macOS chez elle
 
 **Origine :** épreuve de la mise à jour du 06/10 (passage 37469932840) : l'appli glissée par le Finder et marquée « autorisée » tournait isolée (AppTranslocation).

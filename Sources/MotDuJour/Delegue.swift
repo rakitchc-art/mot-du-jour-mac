@@ -85,6 +85,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Un seul exemplaire à la fois (deux écriraient le même carnet). Le
         // second demande au premier d'ouvrir son panneau, puis s'en va.
         if case .normal = mode, autreExemplaireEnRoute() {
+            journal.noter("un exemplaire tourne déjà : celui-ci (\(Bundle.main.bundlePath)) lui passe la main")
             DistributedNotificationCenter.default().postNotificationName(Self.notificationOuvrir, object: nil,
                                                                          userInfo: nil, deliverImmediately: true)
             NSApp.terminate(nil)
@@ -182,7 +183,10 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return false
     }
 
-    @objc private func ouvrirDemande(_ n: Notification) { cederOuOuvrir() }
+    @objc private func ouvrirDemande(_ n: Notification) {
+        journal.noter("demande d'un autre exemplaire reçue (\(Bundle.main.bundlePath))")
+        cederOuOuvrir()
+    }
 
     /// On la rappelle (double-clic, autre exemplaire) : une copie qui tourne
     /// hors d'Applications cède la place à celle qu'elle vient d'y ranger.
