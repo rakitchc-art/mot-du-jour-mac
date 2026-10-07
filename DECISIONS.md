@@ -15,6 +15,15 @@ Format d'une entrée :
 
 ---
 
+## 2026-10-07 — « Dire à Dova quand j'ai joué » (1.0.4)
+
+**Décision :** une fois par jour joué, l'appli envoie `{"jour", "version"}` à un registre sur le VPS (`serveur-activite/serveur.mjs`, `/root/projets/mot-du-jour-activite`, derrière `https://retroseance.fr/mot-du-jour/` comme les licences Kitch). Rien d'autre : ni le mot, ni les essais, ni de nom. Le registre ne se lit PAS par le web : Claude le lit par SSH quand Dova demande. Ligne de menu « Dire à Dova quand j'ai joué », cochée, que Kelly peut décocher (choix gardé) ; la notice le dit.
+**Raison :** Dova veut « juste pouvoir savoir si elle se sert de l'appli », Kelly est d'accord ; pas de notification (« quand je demande tu me dis »), le strict minimum envoyé (« juste elle a joué »).
+**Comment :** les jours à signaler se TIRENT du carnet (jours des essais, à l'heure du Mac, 7 derniers jours, pas encore acceptés) — un jour joué hors connexion part plus tard ; un jour refusé (4xx) est abandonné pour ne pas bloquer les suivants ; échec passager : nouvel essai 10 min plus tard. L'adresse étant publique, le registre ne note un jour qu'une fois, dans une fenêtre de dates, avec un plafond par jour et une taille plafonnée — n'importe qui pourrait y écrire un faux « a joué » : c'est un indice amical, pas une preuve.
+**Épreuves :** `serveur-activite/eprouver.mjs` (19 contrôles, et il échoue sur une copie sabotée) ; sur les 4 Mac, l'épreuve du vrai clavier fait arriver le jour joué au VRAI serveur lancé en local — l'appli n'accepte une adresse locale qu'en épreuve, et les copies des autres épreuves ont une adresse inutilisable : aucune épreuve n'écrit dans le registre de Dova.
+**Alternatives écartées :** une notification sur son téléphone (il n'en veut pas) ; un service gratuit en ligne (adresse publique ET lecture publique) ; envoyer le résultat (il a choisi « juste elle a joué »).
+**Ce qui invaliderait ce choix :** Kelly qui ne veut plus (elle décoche) ; un registre rempli de faux jours.
+
 ## 2026-10-06 — Pas de catégorie « jeux » dans Info.plist
 
 **Décision :** plus de `LSApplicationCategoryType` (c'était `public.app-category.word-games`), à partir de la 1.0.3 (étiquettes v1.0.1 et v1.0.2 posées, jamais publiées, jamais réutilisées : v1.0.1 rouge sur l'épreuve D ; v1.0.2 refusée par le contrôle de l'appli, l'API de GitHub ayant répondu 403 — limite des questions sans compte épuisée par les Mac de GitHub ; le contrôle passe désormais avec le jeton du job).

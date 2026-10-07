@@ -72,8 +72,9 @@ attendre_ligne() {   # attendre_ligne <motif> <secondes> : dans le journal ordin
   done
 }
 version_installee() { /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INSTALLEE/Contents/Info.plist"; }
-autoriser_local() {   # sur une copie d'épreuve seulement
-  /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" \
+autoriser_local() {   # sur une copie d'épreuve seulement (et jamais le registre « elle a joué » de Dova)
+  /usr/libexec/PlistBuddy -c "Set :MDJActiviteURL http://127.0.0.1:9/activite" \
+                          -c "Add :NSAppTransportSecurity dict" \
                           -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$1/Contents/Info.plist"
   codesign --force --deep --sign - "$1"
 }

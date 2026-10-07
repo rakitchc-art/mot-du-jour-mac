@@ -43,6 +43,9 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var minuterie: Timer?
     private var abonnement: AnyCancellable?
     private var pastilleAffichee: Bool?
+    /// « Dire à Dova quand j'ai joué » (Signalement.swift) : l'appli
+    /// ordinaire, et l'épreuve du vrai clavier (vers un registre local).
+    private var signalement: Signalement?
 
     // Le choix de Dova sur les planches (06/10/2026) : look B « façon Mac »
     // (clair ou sombre selon le Mac, résolu par PanneauRacine), sans clavier à
@@ -121,6 +124,12 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         default: break   // les épreuves tournent hors d'Applications exprès
         }
         let bilan = installerMiseAJour(dossierCarnet: dossierCarnet)
+        switch mode {
+        case .normal: signalement = Signalement(journal: journal, epreuve: false)
+        case .epreuveClavier: signalement = Signalement(journal: journal, epreuve: true)
+        default: break   // les autres bacs à sable ne signalent rien
+        }
+        signalement?.signaler(carnet: modele.jeu.carnet)
 
         installerElement()
         installerPanneau()
@@ -409,6 +418,7 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ajouter("Ouvrir le mot du jour", #selector(menuOuvrir))
         menu.addItem(.separator())
         ajouter("Ouvrir au démarrage du Mac", #selector(menuDemarrage), coche: Demarrage.actif)
+        if signalement != nil { ajouter("Dire à Dova quand j'ai joué", #selector(menuSignalement), coche: Signalement.actif) }
         if miseAJour != nil { ajouter("Rechercher une mise à jour", #selector(menuMiseAJour)) }
         menu.addItem(.separator())
         ajouter("À propos de Mot du jour", #selector(menuAPropos))
@@ -431,7 +441,8 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 alerte("La version \(v) est prête",
                        detail: "Elle s'installera toute seule dès que le panneau sera fermé, puis l'appli se relancera.")
             case .occupee:
-                alerte("Une recherche est déjà en cours", detail: "Réessaie dans un instant.")
+                alerte("La recherche est déjà en cours",
+                       detail: "Si une nouvelle version est trouvée, elle s'installera toute seule dans un instant (l'icône disparaît une seconde, puis revient).")
             case .acceptee:
                 break
             case .echec(let m):
@@ -454,6 +465,12 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func menuOuvrir() { ouvrirPanneau() }
+
+    @objc private func menuSignalement() {
+        Signalement.basculer()
+        journal.noter("activité : \(Signalement.actif ? "réactivée" : "coupée") dans le menu")
+        if Signalement.actif { signalement?.signaler(carnet: modele.jeu.carnet) }
+    }
 
     @objc private func menuDemarrage() {
         do {
@@ -488,6 +505,12 @@ final class Delegue: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func tic() {
         modele.verifierJour()
         majIcone()
+        signalement?.signaler(carnet: modele.jeu.carnet)
+        // Une version prête dont la pose a été retenue (une alerte était
+        // ouverte, le panneau aussi) : sans ceci, elle attendait la prochaine
+        // fermeture du panneau ou la recherche suivante (6 h) — vu chez Kelly
+        // le 06/10 : « Une recherche est déjà en cours », et plus rien.
+        miseAJour?.poserSiPossible()
     }
 
     /// La pastille telle qu'elle est posée dans la barre (pour l'autotest).
